@@ -1,0 +1,15 @@
+{
+  "name": "retina-annotation-app",
+  "version": "1.0.0",
+  "description": "Application d'annotation d'images de rétinopathie diabétique",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "xlsx": "^0.18.5",
+    "cors": "^2.8.5"
+  }
+}
