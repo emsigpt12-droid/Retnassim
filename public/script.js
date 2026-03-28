@@ -317,6 +317,14 @@ function renderStats() {
   dom.progressBar.style.width    = pct + '%';
   dom.progressPct.textContent    = pct + '%';
 
+  // Barre mobile
+  const mobFill  = $('mob-fill');
+  const mobPct   = $('mob-pct');
+  const mobCount = $('mob-count');
+  if (mobFill)  mobFill.style.width   = pct + '%';
+  if (mobPct)   mobPct.textContent    = pct + '%';
+  if (mobCount) mobCount.textContent  = `${annotated} / ${total}`;
+
   // Distribution par classe
   const counts = {};
   CLASSES.forEach(c => counts[c] = 0);

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>RetAnnot — Rétinopathie Diabétique</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -13,7 +13,6 @@
 
   <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
   <aside class="sidebar">
-
     <div class="sidebar-brand">
       <div class="brand-icon">
         <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -37,56 +36,24 @@
     <div class="sidebar-section">
       <div class="section-label">PROGRESSION</div>
       <div class="progress-stats">
-        <div class="stat-row">
-          <span class="stat-label">Annotées</span>
-          <span class="stat-value" id="stat-annotated">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Total</span>
-          <span class="stat-value" id="stat-total">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Restantes</span>
-          <span class="stat-value" id="stat-remaining">0</span>
-        </div>
+        <div class="stat-row"><span class="stat-label">Annotées</span><span class="stat-value" id="stat-annotated">0</span></div>
+        <div class="stat-row"><span class="stat-label">Total</span><span class="stat-value" id="stat-total">0</span></div>
+        <div class="stat-row"><span class="stat-label">Restantes</span><span class="stat-value" id="stat-remaining">0</span></div>
       </div>
       <div class="progress-bar-wrap">
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="progress-bar"></div>
-        </div>
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-bar"></div></div>
         <div class="progress-pct" id="progress-pct">0%</div>
       </div>
     </div>
-    
 
     <div class="sidebar-section">
       <div class="section-label">DISTRIBUTION</div>
       <div class="class-bars" id="class-bars">
-        <div class="class-bar-row" data-class="No DR">
-          <div class="class-bar-label">No DR</div>
-          <div class="class-bar-track"><div class="class-bar-fill grade-0"></div></div>
-          <div class="class-bar-count" id="count-0">0</div>
-        </div>
-        <div class="class-bar-row" data-class="Mild">
-          <div class="class-bar-label">Mild</div>
-          <div class="class-bar-track"><div class="class-bar-fill grade-1"></div></div>
-          <div class="class-bar-count" id="count-1">0</div>
-        </div>
-        <div class="class-bar-row" data-class="Moderate">
-          <div class="class-bar-label">Moderate</div>
-          <div class="class-bar-track"><div class="class-bar-fill grade-2"></div></div>
-          <div class="class-bar-count" id="count-2">0</div>
-        </div>
-        <div class="class-bar-row" data-class="Severe">
-          <div class="class-bar-label">Severe</div>
-          <div class="class-bar-track"><div class="class-bar-fill grade-3"></div></div>
-          <div class="class-bar-count" id="count-3">0</div>
-        </div>
-        <div class="class-bar-row" data-class="Proliferative DR">
-          <div class="class-bar-label">Prolif.</div>
-          <div class="class-bar-track"><div class="class-bar-fill grade-4"></div></div>
-          <div class="class-bar-count" id="count-4">0</div>
-        </div>
+        <div class="class-bar-row"><div class="class-bar-label">No DR</div><div class="class-bar-track"><div class="class-bar-fill grade-0"></div></div><div class="class-bar-count" id="count-0">0</div></div>
+        <div class="class-bar-row"><div class="class-bar-label">Mild</div><div class="class-bar-track"><div class="class-bar-fill grade-1"></div></div><div class="class-bar-count" id="count-1">0</div></div>
+        <div class="class-bar-row"><div class="class-bar-label">Moderate</div><div class="class-bar-track"><div class="class-bar-fill grade-2"></div></div><div class="class-bar-count" id="count-2">0</div></div>
+        <div class="class-bar-row"><div class="class-bar-label">Severe</div><div class="class-bar-track"><div class="class-bar-fill grade-3"></div></div><div class="class-bar-count" id="count-3">0</div></div>
+        <div class="class-bar-row"><div class="class-bar-label">Prolif.</div><div class="class-bar-track"><div class="class-bar-fill grade-4"></div></div><div class="class-bar-count" id="count-4">0</div></div>
       </div>
     </div>
 
@@ -108,13 +75,11 @@
         <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Exporter Excel
       </button>
-      <!-- ✅ NOUVEAU : Bouton réinitialisation -->
       <button class="reset-btn" id="reset-btn">
         <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Réinitialiser annotations
       </button>
     </div>
-
   </aside>
 
   <!-- ════════════════════════════ MAIN CONTENT ════════════════════════════ -->
@@ -134,7 +99,7 @@
         <button class="zoom-btn" id="zoom-in" title="Zoom +">
           <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="4.5" x2="7" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
-        <button class="zoom-btn" id="zoom-reset" title="Réinitialiser">
+        <button class="zoom-btn" id="zoom-reset" title="Réinitialiser zoom">
           <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.5 4M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
@@ -143,7 +108,6 @@
     <!-- Viewer -->
     <div class="viewer-wrap" id="viewer-wrap">
       <div class="viewer" id="viewer">
-        <!-- État vide -->
         <div class="empty-state" id="empty-state">
           <div class="empty-icon">
             <svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4"/><circle cx="32" cy="32" r="12" stroke="currentColor" stroke-width="1.5"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity="0.3"/></svg>
@@ -151,14 +115,19 @@
           <p>Aucune image trouvée</p>
           <small>Placez vos images dans le dossier <code>images/</code></small>
         </div>
-        <!-- Image -->
         <img class="fundus-img hidden" id="fundus-img" alt="Fond d'œil" draggable="false" />
-        <!-- Indicateur annotée -->
         <div class="annotated-badge hidden" id="annotated-badge">
           <svg viewBox="0 0 16 16" fill="none"><polyline points="2,8 6,12 14,4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span id="badge-label">No DR</span>
         </div>
       </div>
+    </div>
+
+    <!-- ✅ Barre progression MOBILE uniquement -->
+    <div class="mobile-progress" id="mobile-progress">
+      <span class="mob-count" id="mob-count">0 / 0</span>
+      <div class="mob-track"><div class="mob-fill" id="mob-fill"></div></div>
+      <span class="mob-pct" id="mob-pct">0%</span>
     </div>
 
     <!-- Annotation Buttons -->
@@ -192,7 +161,7 @@
         <button class="grade-btn" data-grade="Proliferative DR" data-key="5">
           <span class="grade-num">5</span>
           <span class="grade-dot grade-4-dot"></span>
-          <span class="grade-name">Proliferative DR</span>
+          <span class="grade-name">Prolif. DR</span>
           <span class="grade-desc">Proliférante</span>
         </button>
       </div>
@@ -232,7 +201,7 @@
     <p>Chargement des données…</p>
   </div>
 
-  <!-- ✅ NOUVEAU : Modal de confirmation reset -->
+  <!-- Modal reset -->
   <div class="modal-overlay hidden" id="reset-modal">
     <div class="modal">
       <div class="modal-icon">
@@ -242,7 +211,7 @@
         </svg>
       </div>
       <h2 class="modal-title">Réinitialiser toutes les annotations ?</h2>
-      <p class="modal-desc">Cette action est <strong>irréversible</strong>. Toutes les annotations seront supprimées et l'état sera remis à zéro.</p>
+      <p class="modal-desc">Cette action est <strong>irréversible</strong>. Toutes les annotations seront supprimées.</p>
       <div class="modal-actions">
         <button class="modal-btn cancel" id="reset-cancel">Annuler</button>
         <button class="modal-btn confirm" id="reset-confirm">Oui, réinitialiser</button>
