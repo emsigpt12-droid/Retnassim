@@ -88,13 +88,92 @@ code   { font-family: var(--font-mono); font-size: 12px; }
 .shortcuts { display: flex; flex-direction: column; gap: 8px; }
 .shortcut-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
 kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 7px; background: var(--bg-overlay); border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); }
-.sidebar-footer { margin-top: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
-.export-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 0; background: var(--bg-overlay); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 14px; font-weight: 500; letter-spacing: 0.3px; transition: all var(--transition); }
-.export-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
-.export-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-.reset-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 0; background: transparent; border: 1px solid rgba(239,68,68,0.25); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 13px; font-weight: 500; transition: all var(--transition); }
-.reset-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
-.reset-btn:hover { background: var(--danger-dim); border-color: var(--danger); color: var(--danger); }
+
+/* ─── Sidebar footer — 4 boutons uniformes ───────────────────────────────── */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Base commune à tous les boutons du footer */
+.export-btn,
+.delete-btn,
+.restore-btn,
+.reset-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  letter-spacing: 0.3px;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+
+.export-btn svg,
+.delete-btn svg,
+.restore-btn svg,
+.reset-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* Exporter Excel — neutre */
+.export-btn {
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.export-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Supprimer — rouge */
+.delete-btn {
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.25);
+  color: var(--text-muted);
+}
+.delete-btn:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Restaurer images — neutre (même style qu'Export) */
+.restore-btn {
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.restore-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Réinitialiser annotations — rouge discret */
+.reset-btn {
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.25);
+  color: var(--text-muted);
+}
+.reset-btn:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+  color: var(--danger);
+}
 
 /* ─── Main ───────────────────────────────────────────────────────────────── */
 .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
@@ -206,12 +285,8 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
    ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   body { overflow: hidden; height: 100dvh; }
-
   .sidebar { display: none; }
-
   .main { height: 100dvh; }
-
-  /* Topbar compact */
   .topbar { height: 48px; padding: 0 12px; }
   .image-name { font-size: 12px; }
   .image-counter { font-size: 11px; padding: 2px 8px; }
@@ -219,23 +294,15 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
   .zoom-level { display: none; }
   #zoom-reset { width: 30px; height: 30px; }
   #zoom-reset svg { width: 14px; height: 14px; }
-
-  /* Barre progression mobile visible */
   .mobile-progress {
-    display: flex !important;
-    align-items: center;
-    gap: 10px;
-    padding: 5px 14px;
-    background: var(--bg-surface);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
+    display: flex !important; align-items: center; gap: 10px;
+    padding: 5px 14px; background: var(--bg-surface);
+    border-top: 1px solid var(--border); flex-shrink: 0;
   }
   .mobile-progress .mob-track { flex: 1; height: 5px; background: var(--bg-overlay); border-radius: 99px; overflow: hidden; }
   .mobile-progress .mob-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #67e8f9); border-radius: 99px; width: 0%; transition: width 400ms ease; }
   .mobile-progress .mob-pct { font-size: 11px; font-family: var(--font-mono); color: var(--accent); white-space: nowrap; }
   .mobile-progress .mob-count { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-
-  /* Panel annotation : grille 5 colonnes */
   .annotation-panel { padding: 8px 10px 6px; }
   .panel-label { font-size: 9px; margin-bottom: 6px; }
   .grade-buttons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
@@ -244,8 +311,6 @@ kbd { display: inline-flex; align-items: center; justify-content: center; min-wi
   .grade-dot { width: 8px; height: 8px; margin-bottom: 3px; }
   .grade-name { font-size: 11px; text-align: center; line-height: 1.2; }
   .grade-desc { display: none; }
-
-  /* Nav mobile : juste Précédent + Suivant */
   .nav-bar { height: 58px; padding: 0 12px; gap: 8px; }
   .nav-jump { display: none; }
   .skip-label { display: none; }

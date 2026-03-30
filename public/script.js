@@ -7,11 +7,11 @@
 
 // ─── État global ─────────────────────────────────────────────────────────────
 const state = {
-  images:      [],          // Liste des noms de fichiers
-  annotations: {},          // { filename: grade }
-  currentIdx:  0,           // Index courant
-  zoomLevel:   1.0,         // Niveau de zoom (0.5 – 4.0)
-  isSaving:    false,       // Verrou de sauvegarde
+  images:      [],
+  annotations: {},
+  currentIdx:  0,
+  zoomLevel:   1.0,
+  isSaving:    false,
 };
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -19,24 +19,19 @@ const ZOOM_STEP   = 0.25;
 const ZOOM_MIN    = 0.25;
 const ZOOM_MAX    = 4.0;
 const CLASSES     = ['No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR'];
-const AUTO_NEXT_DELAY_MS = 260;   // délai après annotation avant passage suivant
 
-// Compteurs sidebar par classe (index = position dans CLASSES)
 const CLASS_COUNT_IDS = ['count-0', 'count-1', 'count-2', 'count-3', 'count-4'];
 const CLASS_BAR_IDS   = ['grade-0', 'grade-1', 'grade-2', 'grade-3', 'grade-4'];
-
 
 // ─── Refs DOM ─────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 const dom = {
-  // Image viewer
   fundusImg:       $('fundus-img'),
   emptyState:      $('empty-state'),
   annotatedBadge:  $('annotated-badge'),
   badgeLabel:      $('badge-label'),
 
-  // Topbar
   imageName:       $('image-name'),
   imageCounter:    $('image-counter'),
   zoomIn:          $('zoom-in'),
@@ -44,34 +39,32 @@ const dom = {
   zoomReset:       $('zoom-reset'),
   zoomLevel:       $('zoom-level'),
 
-  // Stats sidebar
   statAnnotated:   $('stat-annotated'),
   statTotal:       $('stat-total'),
   statRemaining:   $('stat-remaining'),
   progressBar:     $('progress-bar'),
   progressPct:     $('progress-pct'),
 
-  // Navigation
   btnPrev:         $('btn-prev'),
   btnNext:         $('btn-next'),
   jumpInput:       $('jump-input'),
   jumpBtn:         $('jump-btn'),
   skipAnnotated:   $('skip-annotated'),
 
-  // Misc
   loadingOverlay:  $('loading-overlay'),
   toastWrap:       $('toast-wrap'),
   exportBtn:       $('export-btn'),
 
-  // ✅ NOUVEAU : Reset
   resetBtn:        $('reset-btn'),
   resetModal:      $('reset-modal'),
   resetConfirm:    $('reset-confirm'),
   resetCancel:     $('reset-cancel'),
 
-  // Grade buttons (NodeList)
+  deleteBtn:       $('delete-btn'),
+  restoreBtn:      $('restore-btn'),   // ✅ NOUVEAU
+
   gradeBtns:       document.querySelectorAll('.grade-btn'),
-  classBarFills:   [],   // rempli après init
+  classBarFills:   [],
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -87,7 +80,6 @@ async function init() {
   } finally {
     showLoading(false);
   }
-
   bindEvents();
 }
 
@@ -166,40 +158,91 @@ async function annotate(grade) {
   if (state.images.length === 0 || state.isSaving) return;
   const imageId = state.images[state.currentIdx];
 
-  // Mise à jour locale optimiste
   state.annotations[imageId] = grade;
   renderGradeButtons();
   renderBadge();
   renderStats();
 
-  // Flash visuel sur le bouton
   const btn = document.querySelector(`.grade-btn[data-grade="${grade}"]`);
   if (btn) {
     btn.classList.add('flashing');
     setTimeout(() => btn.classList.remove('flashing'), 200);
   }
 
-  // Sauvegarde
   state.isSaving = true;
   try {
     await saveAnnotation(imageId, grade);
-    // Passage automatique après délai
-    setTimeout(() => {
-      goNext();
-      state.isSaving = false;
-    }, AUTO_NEXT_DELAY_MS);
   } catch (err) {
     console.error('[Annotate] Erreur :', err);
     showToast('Erreur sauvegarde : ' + err.message, 'error');
+  } finally {
     state.isSaving = false;
+  }
+}
+
+// ─── Supprimer image floue ────────────────────────────────────────────────────
+
+async function deleteImage() {
+  if (state.images.length === 0) return;
+  const imageId = state.images[state.currentIdx];
+
+  try {
+    const res = await fetch('/api/delete-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_id: imageId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Erreur suppression');
+    }
+
+    state.images.splice(state.currentIdx, 1);
+    delete state.annotations[imageId];
+
+    if (state.currentIdx >= state.images.length) {
+      state.currentIdx = Math.max(0, state.images.length - 1);
+    }
+
+    renderAll();
+    showToast(`"${imageId}" déplacée vers images_supprimer/`, 'success');
+  } catch (err) {
+    console.error('[Delete] Erreur :', err);
+    showToast('Erreur : ' + err.message, 'error');
+  }
+}
+
+// ─── ✅ NOUVEAU : Restaurer les images floues ─────────────────────────────────
+
+async function restoreImages() {
+  try {
+    const res = await fetch('/api/restore-images', { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Erreur restauration');
+    }
+
+    const data  = await res.json();
+    const count = data.restored || 0;
+
+    if (count === 0) {
+      showToast('Aucune image à restaurer', 'info');
+      return;
+    }
+
+    // Recharger la liste complète depuis le serveur
+    await loadImages();
+    renderAll();
+
+    showToast(`${count} image(s) restaurée(s) dans images/`, 'success');
+  } catch (err) {
+    console.error('[Restore] Erreur :', err);
+    showToast('Erreur : ' + err.message, 'error');
   }
 }
 
 // ─── Reset annotations ────────────────────────────────────────────────────────
 
-/**
- * Ouvre la modal de confirmation avant de réinitialiser
- */
 function openResetModal() {
   dom.resetModal.classList.remove('hidden');
 }
@@ -208,27 +251,19 @@ function closeResetModal() {
   dom.resetModal.classList.add('hidden');
 }
 
-/**
- * Exécute la réinitialisation complète après confirmation
- */
 async function confirmReset() {
   closeResetModal();
   showLoading(true);
-
   try {
     const res = await fetch('/api/reset', { method: 'POST' });
     if (!res.ok) throw new Error('Échec de la réinitialisation serveur');
 
-    // Reset état local
     state.annotations = {};
     state.currentIdx  = 0;
     state.isSaving    = false;
 
-    // Reset UI complète
     renderAll();
-
     showToast('Toutes les annotations ont été supprimées', 'success');
-    console.log('[Reset] ✅ Annotations réinitialisées');
   } catch (err) {
     console.error('[Reset] Erreur :', err);
     showToast('Erreur lors de la réinitialisation : ' + err.message, 'error');
@@ -267,16 +302,16 @@ function renderImage() {
   const name = state.images[state.currentIdx];
   dom.fundusImg.src = `/images/${encodeURIComponent(name)}`;
   dom.fundusImg.alt = name;
-  setZoom(state.zoomLevel); // ré-appliquer le zoom
+  setZoom(state.zoomLevel);
 }
 
 function renderTopbar() {
   if (state.images.length === 0) {
-    dom.imageName.textContent = '—';
+    dom.imageName.textContent    = '—';
     dom.imageCounter.textContent = '— / —';
     return;
   }
-  dom.imageName.textContent = state.images[state.currentIdx];
+  dom.imageName.textContent    = state.images[state.currentIdx];
   dom.imageCounter.textContent = `${state.currentIdx + 1} / ${state.images.length}`;
 
   dom.btnPrev.disabled = state.currentIdx === 0;
@@ -284,17 +319,16 @@ function renderTopbar() {
 }
 
 function renderGradeButtons() {
-  const current = state.images[state.currentIdx];
+  const current  = state.images[state.currentIdx];
   const existing = current ? state.annotations[current] : null;
 
   dom.gradeBtns.forEach(btn => {
-    const grade = btn.dataset.grade;
-    btn.classList.toggle('active', grade === existing);
+    btn.classList.toggle('active', btn.dataset.grade === existing);
   });
 }
 
 function renderBadge() {
-  const current = state.images[state.currentIdx];
+  const current    = state.images[state.currentIdx];
   const annotation = current ? state.annotations[current] : null;
 
   if (annotation) {
@@ -306,26 +340,24 @@ function renderBadge() {
 }
 
 function renderStats() {
-  const total = state.images.length;
-  const annotated = Object.keys(state.annotations).length;
-  const remaining = total - annotated;
-  const pct = total > 0 ? Math.round((annotated / total) * 100) : 0;
+  const total      = state.images.length;
+  const annotated  = Object.keys(state.annotations).length;
+  const remaining  = total - annotated;
+  const pct        = total > 0 ? Math.round((annotated / total) * 100) : 0;
 
-  dom.statAnnotated.textContent  = annotated.toLocaleString('fr');
-  dom.statTotal.textContent      = total.toLocaleString('fr');
-  dom.statRemaining.textContent  = remaining.toLocaleString('fr');
-  dom.progressBar.style.width    = pct + '%';
-  dom.progressPct.textContent    = pct + '%';
+  dom.statAnnotated.textContent = annotated.toLocaleString('fr');
+  dom.statTotal.textContent     = total.toLocaleString('fr');
+  dom.statRemaining.textContent = remaining.toLocaleString('fr');
+  dom.progressBar.style.width   = pct + '%';
+  dom.progressPct.textContent   = pct + '%';
 
-  // Barre mobile
   const mobFill  = $('mob-fill');
   const mobPct   = $('mob-pct');
   const mobCount = $('mob-count');
-  if (mobFill)  mobFill.style.width   = pct + '%';
-  if (mobPct)   mobPct.textContent    = pct + '%';
-  if (mobCount) mobCount.textContent  = `${annotated} / ${total}`;
+  if (mobFill)  mobFill.style.width  = pct + '%';
+  if (mobPct)   mobPct.textContent   = pct + '%';
+  if (mobCount) mobCount.textContent = `${annotated} / ${total}`;
 
-  // Distribution par classe
   const counts = {};
   CLASSES.forEach(c => counts[c] = 0);
   Object.values(state.annotations).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
@@ -335,7 +367,6 @@ function renderStats() {
     const countEl = $(CLASS_COUNT_IDS[i]);
     if (countEl) countEl.textContent = counts[cls];
 
-    // Barre de distribution
     const fill = document.querySelector(`.class-bar-fill.grade-${i}`);
     if (fill) fill.style.width = (counts[cls] / maxCount * 100) + '%';
   });
@@ -344,56 +375,43 @@ function renderStats() {
 // ─── Events ───────────────────────────────────────────────────────────────────
 
 function bindEvents() {
-  // Boutons d'annotation
   dom.gradeBtns.forEach(btn => {
     btn.addEventListener('click', () => annotate(btn.dataset.grade));
   });
 
-  // Navigation
   dom.btnPrev.addEventListener('click', goPrev);
   dom.btnNext.addEventListener('click', goNext);
 
-  // Jump
   dom.jumpBtn.addEventListener('click', handleJump);
   dom.jumpInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') handleJump();
   });
 
-  // Zoom
   dom.zoomIn.addEventListener('click',    () => setZoom(state.zoomLevel + ZOOM_STEP));
   dom.zoomOut.addEventListener('click',   () => setZoom(state.zoomLevel - ZOOM_STEP));
   dom.zoomReset.addEventListener('click', () => setZoom(1.0));
 
-  // Scroll to zoom
   document.getElementById('viewer-wrap').addEventListener('wheel', e => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-    setZoom(state.zoomLevel + delta);
+    setZoom(state.zoomLevel + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP));
   }, { passive: false });
 
-  // Export
   dom.exportBtn.addEventListener('click', () => {
     window.location.href = '/api/export';
   });
 
-  // ✅ NOUVEAU : Reset
   dom.resetBtn.addEventListener('click', openResetModal);
   dom.resetCancel.addEventListener('click', closeResetModal);
   dom.resetConfirm.addEventListener('click', confirmReset);
-
-  // Fermer la modal en cliquant sur l'overlay
   dom.resetModal.addEventListener('click', e => {
     if (e.target === dom.resetModal) closeResetModal();
   });
 
-  // Fermer la modal avec Escape
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !dom.resetModal.classList.contains('hidden')) {
-      closeResetModal();
-    }
-  });
+  dom.deleteBtn.addEventListener('click', deleteImage);
 
-  // Raccourcis clavier
+  // ✅ NOUVEAU
+  dom.restoreBtn.addEventListener('click', restoreImages);
+
   document.addEventListener('keydown', handleKeydown);
 }
 
@@ -408,16 +426,14 @@ function handleJump() {
 }
 
 function handleKeydown(e) {
-  // Éviter les raccourcis lors de la saisie dans un input
   if (e.target.tagName === 'INPUT') return;
-  // Éviter les raccourcis si la modal est ouverte
   if (!dom.resetModal.classList.contains('hidden')) return;
 
   switch (e.key) {
-    case '1': annotate('No DR');           break;
-    case '2': annotate('Mild');            break;
-    case '3': annotate('Moderate');        break;
-    case '4': annotate('Severe');          break;
+    case '1': annotate('No DR');            break;
+    case '2': annotate('Mild');             break;
+    case '3': annotate('Moderate');         break;
+    case '4': annotate('Severe');           break;
     case '5': annotate('Proliferative DR'); break;
     case 'ArrowLeft':  e.preventDefault(); goPrev(); break;
     case 'ArrowRight': e.preventDefault(); goNext(); break;

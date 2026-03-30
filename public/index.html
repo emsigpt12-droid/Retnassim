@@ -75,6 +75,24 @@
         <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Exporter Excel
       </button>
+
+      <!-- Supprimer image floue -->
+      <button class="delete-btn" id="delete-btn">
+        <svg viewBox="0 0 16 16" fill="none">
+          <polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Supprimer l'image
+      </button>
+
+      <!-- ✅ NOUVEAU : Restaurer les images floues -->
+      <button class="restore-btn" id="restore-btn">
+        <svg viewBox="0 0 16 16" fill="none">
+          <path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Restaurer images
+      </button>
+
       <button class="reset-btn" id="reset-btn">
         <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Réinitialiser annotations
@@ -123,7 +141,7 @@
       </div>
     </div>
 
-    <!-- ✅ Barre progression MOBILE uniquement -->
+    <!-- Barre progression MOBILE uniquement -->
     <div class="mobile-progress" id="mobile-progress">
       <span class="mob-count" id="mob-count">0 / 0</span>
       <div class="mob-track"><div class="mob-fill" id="mob-fill"></div></div>
