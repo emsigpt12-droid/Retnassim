@@ -11,7 +11,7 @@
 </head>
 <body>
 
-  <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
+  <!-- ═══════════════════════════════ SIDEBAR (desktop) ═══════════════════════════════ -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="brand-icon">
@@ -75,24 +75,19 @@
         <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Exporter Excel
       </button>
-
-      <!-- Supprimer image floue -->
       <button class="delete-btn" id="delete-btn">
         <svg viewBox="0 0 16 16" fill="none">
           <polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           <path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        Supprimer l'image
+        Supprimer (flou)
       </button>
-
-      <!-- ✅ NOUVEAU : Restaurer les images floues -->
       <button class="restore-btn" id="restore-btn">
         <svg viewBox="0 0 16 16" fill="none">
           <path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Restaurer images
       </button>
-
       <button class="reset-btn" id="reset-btn">
         <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Réinitialiser annotations
@@ -100,12 +95,101 @@
     </div>
   </aside>
 
+  <!-- ═══════════════════════════════ MOBILE DRAWER ═══════════════════════════════ -->
+  <div class="drawer-overlay hidden" id="drawer-overlay"></div>
+  <div class="drawer hidden" id="drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <svg viewBox="0 0 32 32" fill="none" width="22" height="22">
+          <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+        </svg>
+        RetAnnot
+      </div>
+      <button class="drawer-close" id="drawer-close">
+        <svg viewBox="0 0 16 16" fill="none"><line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <!-- Stats dans le drawer -->
+    <div class="drawer-section">
+      <div class="drawer-section-label">PROGRESSION</div>
+      <div class="drawer-stats">
+        <div class="drawer-stat"><span>Annotées</span><strong id="mob-stat-annotated">0</strong></div>
+        <div class="drawer-stat"><span>Total</span><strong id="mob-stat-total">0</strong></div>
+        <div class="drawer-stat"><span>Restantes</span><strong id="mob-stat-remaining">0</strong></div>
+      </div>
+      <div class="drawer-progress-track"><div class="drawer-progress-fill" id="mob-progress-bar"></div></div>
+    </div>
+
+    <!-- Distribution dans le drawer -->
+    <div class="drawer-section">
+      <div class="drawer-section-label">DISTRIBUTION</div>
+      <div class="drawer-dist">
+        <div class="drawer-dist-row"><span>No DR</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-0" id="mob-grade-0"></div></div><span id="mob-count-0">0</span></div>
+        <div class="drawer-dist-row"><span>Mild</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-1" id="mob-grade-1"></div></div><span id="mob-count-1">0</span></div>
+        <div class="drawer-dist-row"><span>Moderate</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-2" id="mob-grade-2"></div></div><span id="mob-count-2">0</span></div>
+        <div class="drawer-dist-row"><span>Severe</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-3" id="mob-grade-3"></div></div><span id="mob-count-3">0</span></div>
+        <div class="drawer-dist-row"><span>Prolif.</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-4" id="mob-grade-4"></div></div><span id="mob-count-4">0</span></div>
+      </div>
+    </div>
+
+    <!-- Navigation rapide -->
+    <div class="drawer-section">
+      <div class="drawer-section-label">ALLER À L'IMAGE</div>
+      <div class="drawer-jump">
+        <input type="number" id="mob-jump-input" placeholder="N°" min="1" />
+        <button id="mob-jump-btn">Aller</button>
+      </div>
+      <label class="drawer-skip">
+        <input type="checkbox" id="mob-skip-annotated" />
+        <span>Ignorer les images annotées</span>
+      </label>
+    </div>
+
+    <!-- Actions -->
+    <div class="drawer-section">
+      <div class="drawer-section-label">ACTIONS</div>
+      <div class="drawer-actions">
+        <button class="drawer-action-btn export" id="mob-export-btn">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Exporter Excel
+        </button>
+        <button class="drawer-action-btn danger" id="mob-delete-btn">
+          <svg viewBox="0 0 16 16" fill="none">
+            <polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Supprimer (flou)
+        </button>
+        <button class="drawer-action-btn neutral" id="mob-restore-btn">
+          <svg viewBox="0 0 16 16" fill="none">
+            <path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Restaurer images
+        </button>
+        <button class="drawer-action-btn danger" id="mob-reset-btn">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Réinitialiser annotations
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ════════════════════════════ MAIN CONTENT ════════════════════════════ -->
   <main class="main">
 
     <!-- Topbar -->
     <header class="topbar">
       <div class="image-meta">
+        <!-- Bouton menu hamburger (mobile uniquement) -->
+        <button class="mob-menu-btn" id="mob-menu-btn">
+          <svg viewBox="0 0 20 20" fill="none">
+            <line x1="3" y1="5" x2="17" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="3" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
         <span class="image-name" id="image-name">—</span>
         <span class="image-counter" id="image-counter">— / —</span>
       </div>
@@ -141,7 +225,7 @@
       </div>
     </div>
 
-    <!-- Barre progression MOBILE uniquement -->
+    <!-- Barre progression MOBILE -->
     <div class="mobile-progress" id="mobile-progress">
       <span class="mob-count" id="mob-count">0 / 0</span>
       <div class="mob-track"><div class="mob-fill" id="mob-fill"></div></div>
