@@ -18,20 +18,26 @@ const state = {
 const ZOOM_STEP = 0.25;
 const ZOOM_MIN  = 0.25;
 const ZOOM_MAX  = 4.0;
-const CLASSES   = ['No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR'];
-const CLASS_COUNT_IDS = ['count-0', 'count-1', 'count-2', 'count-3', 'count-4'];
+
+// Toutes les classes (5 DR + 3 extra)
+const CLASSES = [
+  'No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR',
+  'Impacts laser', 'Autre pathologie', 'Mauvaise qualité',
+];
+const CLASS_COUNT_IDS = [
+  'count-0', 'count-1', 'count-2', 'count-3', 'count-4',
+  'count-5', 'count-6', 'count-7',
+];
 
 // ─── Refs DOM ─────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 const dom = {
-  // Viewer
   fundusImg:      $('fundus-img'),
   emptyState:     $('empty-state'),
   annotatedBadge: $('annotated-badge'),
   badgeLabel:     $('badge-label'),
 
-  // Topbar
   imageName:      $('image-name'),
   imageCounter:   $('image-counter'),
   zoomIn:         $('zoom-in'),
@@ -39,57 +45,49 @@ const dom = {
   zoomReset:      $('zoom-reset'),
   zoomLevel:      $('zoom-level'),
 
-  // Stats desktop
   statAnnotated:  $('stat-annotated'),
   statTotal:      $('stat-total'),
   statRemaining:  $('stat-remaining'),
   progressBar:    $('progress-bar'),
   progressPct:    $('progress-pct'),
 
-  // Navigation desktop
   btnPrev:        $('btn-prev'),
   btnNext:        $('btn-next'),
   jumpInput:      $('jump-input'),
   jumpBtn:        $('jump-btn'),
   skipAnnotated:  $('skip-annotated'),
 
-  // Boutons desktop sidebar
   exportBtn:      $('export-btn'),
   deleteBtn:      $('delete-btn'),
   restoreBtn:     $('restore-btn'),
   resetBtn:       $('reset-btn'),
 
-  // Modal reset
   resetModal:     $('reset-modal'),
   resetConfirm:   $('reset-confirm'),
   resetCancel:    $('reset-cancel'),
 
-  // Misc
   loadingOverlay: $('loading-overlay'),
   toastWrap:      $('toast-wrap'),
 
-  // Grade buttons
-  gradeBtns:      document.querySelectorAll('.grade-btn'),
+  // Tous les boutons d'annotation (grade-btn + extra-btn)
+  gradeBtns:      document.querySelectorAll('.grade-btn, .extra-btn'),
 
-  // ── MOBILE ──
+  // Mobile
   mobMenuBtn:     $('mob-menu-btn'),
   drawer:         $('drawer'),
   drawerOverlay:  $('drawer-overlay'),
   drawerClose:    $('drawer-close'),
 
-  // Stats dans le drawer
   mobStatAnnotated:  $('mob-stat-annotated'),
   mobStatTotal:      $('mob-stat-total'),
   mobStatRemaining:  $('mob-stat-remaining'),
   mobProgressBar:    $('mob-progress-bar'),
 
-  // Boutons drawer mobile
   mobExportBtn:   $('mob-export-btn'),
   mobDeleteBtn:   $('mob-delete-btn'),
   mobRestoreBtn:  $('mob-restore-btn'),
   mobResetBtn:    $('mob-reset-btn'),
 
-  // Jump drawer
   mobJumpInput:   $('mob-jump-input'),
   mobJumpBtn:     $('mob-jump-btn'),
   mobSkip:        $('mob-skip-annotated'),
@@ -145,10 +143,7 @@ async function saveAnnotation(imageId, grade) {
 function openDrawer() {
   dom.drawer.classList.remove('hidden');
   dom.drawerOverlay.classList.remove('hidden');
-  // Forcer le reflow avant d'ajouter la classe open (animation)
-  requestAnimationFrame(() => {
-    dom.drawer.classList.add('open');
-  });
+  requestAnimationFrame(() => dom.drawer.classList.add('open'));
   document.body.style.overflow = 'hidden';
 }
 
@@ -173,7 +168,6 @@ function goTo(idx) {
 }
 
 function getSkip() {
-  // Lire depuis desktop ou mobile selon lequel est visible
   return dom.skipAnnotated.checked || dom.mobSkip.checked;
 }
 
@@ -213,7 +207,8 @@ async function annotate(grade) {
   renderBadge();
   renderStats();
 
-  const btn = document.querySelector(`.grade-btn[data-grade="${grade}"]`);
+  // Flash sur le bouton cliqué (grade-btn ou extra-btn)
+  const btn = document.querySelector(`[data-grade="${grade}"]`);
   if (btn) {
     btn.classList.add('flashing');
     setTimeout(() => btn.classList.remove('flashing'), 200);
@@ -236,7 +231,6 @@ async function deleteImage() {
   if (state.images.length === 0) return;
   const imageId = state.images[state.currentIdx];
   closeDrawer();
-
   try {
     const res = await fetch('/api/delete-image', {
       method: 'POST',
@@ -255,12 +249,11 @@ async function deleteImage() {
     renderAll();
     showToast(`"${imageId}" déplacée vers images_floues/`, 'success');
   } catch (err) {
-    console.error('[Delete] Erreur :', err);
     showToast('Erreur : ' + err.message, 'error');
   }
 }
 
-// ─── Restaurer images floues ──────────────────────────────────────────────────
+// ─── Restaurer images ─────────────────────────────────────────────────────────
 
 async function restoreImages() {
   closeDrawer();
@@ -277,7 +270,6 @@ async function restoreImages() {
     renderAll();
     showToast(`${count} image(s) restaurée(s) dans images/`, 'success');
   } catch (err) {
-    console.error('[Restore] Erreur :', err);
     showToast('Erreur : ' + err.message, 'error');
   }
 }
@@ -288,11 +280,9 @@ function openResetModal() {
   closeDrawer();
   dom.resetModal.classList.remove('hidden');
 }
-
 function closeResetModal() {
   dom.resetModal.classList.add('hidden');
 }
-
 async function confirmReset() {
   closeResetModal();
   showLoading(true);
@@ -358,6 +348,7 @@ function renderTopbar() {
 function renderGradeButtons() {
   const current  = state.images[state.currentIdx];
   const existing = current ? state.annotations[current] : null;
+  // Met à jour grade-btn ET extra-btn
   dom.gradeBtns.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grade === existing);
   });
@@ -380,20 +371,17 @@ function renderStats() {
   const remaining = total - annotated;
   const pct       = total > 0 ? Math.round((annotated / total) * 100) : 0;
 
-  // Desktop sidebar
   if (dom.statAnnotated)  dom.statAnnotated.textContent  = annotated.toLocaleString('fr');
   if (dom.statTotal)      dom.statTotal.textContent      = total.toLocaleString('fr');
   if (dom.statRemaining)  dom.statRemaining.textContent  = remaining.toLocaleString('fr');
   if (dom.progressBar)    dom.progressBar.style.width    = pct + '%';
   if (dom.progressPct)    dom.progressPct.textContent    = pct + '%';
 
-  // Mobile drawer stats
   if (dom.mobStatAnnotated) dom.mobStatAnnotated.textContent = annotated.toLocaleString('fr');
   if (dom.mobStatTotal)     dom.mobStatTotal.textContent     = total.toLocaleString('fr');
   if (dom.mobStatRemaining) dom.mobStatRemaining.textContent = remaining.toLocaleString('fr');
   if (dom.mobProgressBar)   dom.mobProgressBar.style.width   = pct + '%';
 
-  // Barre progression mobile
   const mobFill  = $('mob-fill');
   const mobPct   = $('mob-pct');
   const mobCount = $('mob-count');
@@ -401,48 +389,44 @@ function renderStats() {
   if (mobPct)   mobPct.textContent   = pct + '%';
   if (mobCount) mobCount.textContent = `${annotated} / ${total}`;
 
-  // Distribution par classe
+  // Distribution — 8 classes
   const counts = {};
   CLASSES.forEach(c => counts[c] = 0);
   Object.values(state.annotations).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
   const maxCount = Math.max(...Object.values(counts), 1);
 
   CLASSES.forEach((cls, i) => {
-    // Desktop
+    const pctBar = counts[cls] / maxCount * 100;
+
     const countEl = $(CLASS_COUNT_IDS[i]);
     if (countEl) countEl.textContent = counts[cls];
     const fill = document.querySelector(`.class-bar-fill.grade-${i}`);
-    if (fill) fill.style.width = (counts[cls] / maxCount * 100) + '%';
+    if (fill) fill.style.width = pctBar + '%';
 
-    // Mobile drawer
     const mobCountEl = $(`mob-count-${i}`);
     if (mobCountEl) mobCountEl.textContent = counts[cls];
     const mobFillEl = $(`mob-grade-${i}`);
-    if (mobFillEl) mobFillEl.style.width = (counts[cls] / maxCount * 100) + '%';
+    if (mobFillEl) mobFillEl.style.width = pctBar + '%';
   });
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 
 function bindEvents() {
-  // Grade buttons
+  // Tous les boutons annotation (grade-btn + extra-btn)
   dom.gradeBtns.forEach(btn => {
     btn.addEventListener('click', () => annotate(btn.dataset.grade));
   });
 
-  // Navigation
   dom.btnPrev.addEventListener('click', goPrev);
   dom.btnNext.addEventListener('click', goNext);
 
-  // Jump desktop
   dom.jumpBtn.addEventListener('click', handleJump);
   dom.jumpInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleJump(); });
 
-  // Jump mobile drawer
   dom.mobJumpBtn.addEventListener('click', handleMobJump);
   dom.mobJumpInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleMobJump(); });
 
-  // Zoom
   dom.zoomIn.addEventListener('click',    () => setZoom(state.zoomLevel + ZOOM_STEP));
   dom.zoomOut.addEventListener('click',   () => setZoom(state.zoomLevel - ZOOM_STEP));
   dom.zoomReset.addEventListener('click', () => setZoom(1.0));
@@ -451,31 +435,26 @@ function bindEvents() {
     setZoom(state.zoomLevel + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP));
   }, { passive: false });
 
-  // Boutons desktop
   dom.exportBtn.addEventListener('click',  () => { window.location.href = '/api/export'; });
   dom.deleteBtn.addEventListener('click',  deleteImage);
   dom.restoreBtn.addEventListener('click', restoreImages);
   dom.resetBtn.addEventListener('click',   openResetModal);
 
-  // Boutons drawer mobile
   dom.mobExportBtn.addEventListener('click',  () => { closeDrawer(); window.location.href = '/api/export'; });
   dom.mobDeleteBtn.addEventListener('click',  deleteImage);
   dom.mobRestoreBtn.addEventListener('click', restoreImages);
   dom.mobResetBtn.addEventListener('click',   openResetModal);
 
-  // Drawer
   dom.mobMenuBtn.addEventListener('click',    openDrawer);
   dom.drawerClose.addEventListener('click',   closeDrawer);
   dom.drawerOverlay.addEventListener('click', closeDrawer);
 
-  // Modal reset
   dom.resetCancel.addEventListener('click',  closeResetModal);
   dom.resetConfirm.addEventListener('click', confirmReset);
   dom.resetModal.addEventListener('click', e => {
     if (e.target === dom.resetModal) closeResetModal();
   });
 
-  // Raccourcis clavier
   document.addEventListener('keydown', handleKeydown);
 }
 
@@ -505,11 +484,14 @@ function handleKeydown(e) {
   if (!dom.resetModal.classList.contains('hidden')) return;
 
   switch (e.key) {
-    case '1': annotate('No DR');            break;
-    case '2': annotate('Mild');             break;
-    case '3': annotate('Moderate');         break;
-    case '4': annotate('Severe');           break;
-    case '5': annotate('Proliferative DR'); break;
+    case '1': annotate('No DR');             break;
+    case '2': annotate('Mild');              break;
+    case '3': annotate('Moderate');          break;
+    case '4': annotate('Severe');            break;
+    case '5': annotate('Proliferative DR');  break;
+    case '6': annotate('Impacts laser');     break;
+    case '7': annotate('Autre pathologie');  break;
+    case '8': annotate('Mauvaise qualité');  break;
     case 'ArrowLeft':  e.preventDefault(); goPrev(); break;
     case 'ArrowRight': e.preventDefault(); goNext(); break;
     case '+':

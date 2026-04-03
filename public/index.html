@@ -54,6 +54,10 @@
         <div class="class-bar-row"><div class="class-bar-label">Moderate</div><div class="class-bar-track"><div class="class-bar-fill grade-2"></div></div><div class="class-bar-count" id="count-2">0</div></div>
         <div class="class-bar-row"><div class="class-bar-label">Severe</div><div class="class-bar-track"><div class="class-bar-fill grade-3"></div></div><div class="class-bar-count" id="count-3">0</div></div>
         <div class="class-bar-row"><div class="class-bar-label">Prolif.</div><div class="class-bar-track"><div class="class-bar-fill grade-4"></div></div><div class="class-bar-count" id="count-4">0</div></div>
+        <!-- ✅ NOUVEAUX -->
+        <div class="class-bar-row"><div class="class-bar-label">Laser</div><div class="class-bar-track"><div class="class-bar-fill grade-5"></div></div><div class="class-bar-count" id="count-5">0</div></div>
+        <div class="class-bar-row"><div class="class-bar-label">Autre</div><div class="class-bar-track"><div class="class-bar-fill grade-6"></div></div><div class="class-bar-count" id="count-6">0</div></div>
+        <div class="class-bar-row"><div class="class-bar-label">Mauvaise Q.</div><div class="class-bar-track"><div class="class-bar-fill grade-7"></div></div><div class="class-bar-count" id="count-7">0</div></div>
       </div>
     </div>
 
@@ -65,6 +69,9 @@
         <div class="shortcut-row"><kbd>3</kbd> Moderate</div>
         <div class="shortcut-row"><kbd>4</kbd> Severe</div>
         <div class="shortcut-row"><kbd>5</kbd> Proliferative DR</div>
+        <div class="shortcut-row"><kbd>6</kbd> Impacts laser</div>
+        <div class="shortcut-row"><kbd>7</kbd> Autre pathologie</div>
+        <div class="shortcut-row"><kbd>8</kbd> Mauvaise qualité</div>
         <div class="shortcut-row"><kbd>←</kbd> <kbd>→</kbd> Navigation</div>
         <div class="shortcut-row"><kbd>+</kbd> <kbd>−</kbd> Zoom</div>
       </div>
@@ -111,7 +118,6 @@
       </button>
     </div>
 
-    <!-- Stats dans le drawer -->
     <div class="drawer-section">
       <div class="drawer-section-label">PROGRESSION</div>
       <div class="drawer-stats">
@@ -122,7 +128,6 @@
       <div class="drawer-progress-track"><div class="drawer-progress-fill" id="mob-progress-bar"></div></div>
     </div>
 
-    <!-- Distribution dans le drawer -->
     <div class="drawer-section">
       <div class="drawer-section-label">DISTRIBUTION</div>
       <div class="drawer-dist">
@@ -131,10 +136,12 @@
         <div class="drawer-dist-row"><span>Moderate</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-2" id="mob-grade-2"></div></div><span id="mob-count-2">0</span></div>
         <div class="drawer-dist-row"><span>Severe</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-3" id="mob-grade-3"></div></div><span id="mob-count-3">0</span></div>
         <div class="drawer-dist-row"><span>Prolif.</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-4" id="mob-grade-4"></div></div><span id="mob-count-4">0</span></div>
+        <div class="drawer-dist-row"><span>Laser</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-5" id="mob-grade-5"></div></div><span id="mob-count-5">0</span></div>
+        <div class="drawer-dist-row"><span>Autre</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-6" id="mob-grade-6"></div></div><span id="mob-count-6">0</span></div>
+        <div class="drawer-dist-row"><span>Mauvaise Q.</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-7" id="mob-grade-7"></div></div><span id="mob-count-7">0</span></div>
       </div>
     </div>
 
-    <!-- Navigation rapide -->
     <div class="drawer-section">
       <div class="drawer-section-label">ALLER À L'IMAGE</div>
       <div class="drawer-jump">
@@ -147,7 +154,6 @@
       </label>
     </div>
 
-    <!-- Actions -->
     <div class="drawer-section">
       <div class="drawer-section-label">ACTIONS</div>
       <div class="drawer-actions">
@@ -179,10 +185,8 @@
   <!-- ════════════════════════════ MAIN CONTENT ════════════════════════════ -->
   <main class="main">
 
-    <!-- Topbar -->
     <header class="topbar">
       <div class="image-meta">
-        <!-- Bouton menu hamburger (mobile uniquement) -->
         <button class="mob-menu-btn" id="mob-menu-btn">
           <svg viewBox="0 0 20 20" fill="none">
             <line x1="3" y1="5" x2="17" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -207,7 +211,6 @@
       </div>
     </header>
 
-    <!-- Viewer -->
     <div class="viewer-wrap" id="viewer-wrap">
       <div class="viewer" id="viewer">
         <div class="empty-state" id="empty-state">
@@ -225,16 +228,17 @@
       </div>
     </div>
 
-    <!-- Barre progression MOBILE -->
     <div class="mobile-progress" id="mobile-progress">
       <span class="mob-count" id="mob-count">0 / 0</span>
       <div class="mob-track"><div class="mob-fill" id="mob-fill"></div></div>
       <span class="mob-pct" id="mob-pct">0%</span>
     </div>
 
-    <!-- Annotation Buttons -->
+    <!-- ─── Panneau annotation ─── -->
     <section class="annotation-panel">
       <div class="panel-label">CLASSIFICATION DR</div>
+
+      <!-- Ligne 1 : 5 grands boutons DR -->
       <div class="grade-buttons">
         <button class="grade-btn" data-grade="No DR" data-key="1">
           <span class="grade-num">1</span>
@@ -267,25 +271,40 @@
           <span class="grade-desc">Proliférante</span>
         </button>
       </div>
+
+      <!-- Ligne 2 : 3 petits boutons extra (rectangulaires) -->
+      <div class="extra-buttons">
+        <button class="extra-btn" data-grade="Impacts laser" data-key="6">
+          <span class="extra-num">6</span>
+          <span class="extra-dot grade-5-dot"></span>
+          <span class="extra-name">Impacts laser</span>
+        </button>
+        <button class="extra-btn" data-grade="Autre pathologie" data-key="7">
+          <span class="extra-num">7</span>
+          <span class="extra-dot grade-6-dot"></span>
+          <span class="extra-name">Autre pathologie</span>
+        </button>
+        <button class="extra-btn" data-grade="Mauvaise qualité" data-key="8">
+          <span class="extra-num">8</span>
+          <span class="extra-dot grade-7-dot"></span>
+          <span class="extra-name">Mauvaise qualité</span>
+        </button>
+      </div>
     </section>
 
-    <!-- Navigation -->
     <nav class="nav-bar">
       <button class="nav-btn" id="btn-prev">
         <svg viewBox="0 0 16 16" fill="none"><polyline points="10,3 4,8 10,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Précédent
       </button>
-
       <div class="nav-jump">
         <input type="number" id="jump-input" placeholder="N°" min="1" />
         <button id="jump-btn">Aller</button>
       </div>
-
       <label class="skip-label">
         <input type="checkbox" id="skip-annotated" />
         <span>Ignorer annotées</span>
       </label>
-
       <button class="nav-btn primary" id="btn-next">
         Suivant
         <svg viewBox="0 0 16 16" fill="none"><polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -294,16 +313,13 @@
 
   </main>
 
-  <!-- Toast notifications -->
   <div class="toast-wrap" id="toast-wrap"></div>
 
-  <!-- Loading overlay -->
   <div class="loading-overlay" id="loading-overlay">
     <div class="loading-spinner"></div>
     <p>Chargement des données…</p>
   </div>
 
-  <!-- Modal reset -->
   <div class="modal-overlay hidden" id="reset-modal">
     <div class="modal">
       <div class="modal-icon">

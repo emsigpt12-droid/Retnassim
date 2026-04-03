@@ -1,6 +1,5 @@
 /**
  * server.js — Backend Express pour l'application d'annotation rétinienne
- * Gère : listing d'images, sauvegarde/lecture des annotations (Excel)
  */
 
 const express = require('express');
@@ -11,14 +10,18 @@ const XLSX    = require('xlsx');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ─── Chemins ────────────────────────────────────────────────────────────────
 const IMAGES_DIR = path.join(__dirname, 'images');
-const BLURRY_DIR = path.join(__dirname, 'images_supprimer'); // Dossier pour les images "supprimées" (floues)
+const BLURRY_DIR = path.join(__dirname, 'images_floues');
 const DATA_DIR   = path.join(__dirname, 'data');
 const XLSX_PATH  = path.join(DATA_DIR, 'annotations.xlsx');
 const SHEET_NAME = 'Annotations';
 
-// ─── Middleware ──────────────────────────────────────────────────────────────
+// ✅ 8 classes valides (5 DR + 3 extra)
+const VALID_CLASSES = [
+  'No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR',
+  'Impacts laser', 'Autre pathologie', 'Mauvaise qualité',
+];
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/images', express.static(IMAGES_DIR));
@@ -66,16 +69,11 @@ function writeAnnotation(imageId, annotation) {
   const newSheet = XLSX.utils.json_to_sheet(rows, { header: ['image_id', 'annotation'] });
   workbook.Sheets[SHEET_NAME] = newSheet;
   if (!workbook.SheetNames.includes(SHEET_NAME)) workbook.SheetNames.push(SHEET_NAME);
-
   XLSX.writeFile(workbook, XLSX_PATH);
 }
 
 // ─── Routes API ───────────────────────────────────────────────────────────────
 
-/**
- * GET /api/images
- * Retourne la liste triée des fichiers image dans images/
- */
 app.get('/api/images', (req, res) => {
   if (!fs.existsSync(IMAGES_DIR)) {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
@@ -86,17 +84,12 @@ app.get('/api/images', (req, res) => {
     const files = fs.readdirSync(IMAGES_DIR)
       .filter(f => EXTENSIONS.includes(path.extname(f).toLowerCase()))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-    console.log(`[API] ${files.length} image(s) trouvée(s)`);
     res.json({ images: files, total: files.length });
   } catch (err) {
-    console.error('[API] Erreur lecture images :', err.message);
     res.status(500).json({ error: 'Impossible de lire le dossier images' });
   }
 });
 
-/**
- * GET /api/annotations
- */
 app.get('/api/annotations', (req, res) => {
   try {
     res.json({ annotations: readAnnotations() });
@@ -105,16 +98,11 @@ app.get('/api/annotations', (req, res) => {
   }
 });
 
-/**
- * POST /api/annotations
- * Body : { image_id, annotation }
- */
 app.post('/api/annotations', (req, res) => {
   const { image_id, annotation } = req.body;
   if (!image_id || !annotation) {
     return res.status(400).json({ error: 'image_id et annotation sont requis' });
   }
-  const VALID_CLASSES = ['No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR'];
   if (!VALID_CLASSES.includes(annotation)) {
     return res.status(400).json({ error: `Annotation invalide. Classes : ${VALID_CLASSES.join(', ')}` });
   }
@@ -127,9 +115,6 @@ app.post('/api/annotations', (req, res) => {
   }
 });
 
-/**
- * GET /api/export
- */
 app.get('/api/export', (req, res) => {
   if (!fs.existsSync(XLSX_PATH)) {
     return res.status(404).json({ error: 'Aucun fichier d\'annotations trouvé' });
@@ -137,9 +122,6 @@ app.get('/api/export', (req, res) => {
   res.download(XLSX_PATH, 'annotations.xlsx');
 });
 
-/**
- * GET /api/stats
- */
 app.get('/api/stats', (req, res) => {
   try {
     const annotations = readAnnotations();
@@ -151,10 +133,6 @@ app.get('/api/stats', (req, res) => {
   }
 });
 
-/**
- * POST /api/reset
- * Supprime toutes les annotations
- */
 app.post('/api/reset', (req, res) => {
   try {
     if (fs.existsSync(XLSX_PATH)) {
@@ -170,28 +148,18 @@ app.post('/api/reset', (req, res) => {
   }
 });
 
-/**
- * POST /api/delete-image
- * Body : { image_id }
- * Déplace l'image vers images_floues/ et retire son annotation
- */
 app.post('/api/delete-image', (req, res) => {
   const { image_id } = req.body;
   if (!image_id) return res.status(400).json({ error: 'image_id requis' });
 
   const safeName = path.basename(image_id);
   const srcPath  = path.join(IMAGES_DIR, safeName);
-
-  if (!fs.existsSync(srcPath)) {
-    return res.status(404).json({ error: 'Image introuvable' });
-  }
+  if (!fs.existsSync(srcPath)) return res.status(404).json({ error: 'Image introuvable' });
 
   if (!fs.existsSync(BLURRY_DIR)) fs.mkdirSync(BLURRY_DIR, { recursive: true });
 
   try {
     fs.renameSync(srcPath, path.join(BLURRY_DIR, safeName));
-
-    // Supprimer l'annotation associée
     if (fs.existsSync(XLSX_PATH)) {
       const workbook = XLSX.readFile(XLSX_PATH);
       const sheet    = workbook.Sheets[SHEET_NAME];
@@ -202,64 +170,44 @@ app.post('/api/delete-image', (req, res) => {
         XLSX.writeFile(workbook, XLSX_PATH);
       }
     }
-
-    console.log(`[API] 🗑️  Image déplacée : ${safeName} → images_supprimer/`);
+    console.log(`[API] 🗑️  Image déplacée : ${safeName} → images_floues/`);
     res.json({ success: true, image_id: safeName });
   } catch (err) {
-    console.error('[API] Erreur suppression image :', err.message);
     res.status(500).json({ error: 'Impossible de déplacer l\'image' });
   }
 });
 
-/**
- * ✅ NOUVEAU : POST /api/restore-images
- * Remet toutes les images de images_floues/ dans images/
- */
 app.post('/api/restore-images', (req, res) => {
-  // Si le dossier images_floues/ n'existe pas, rien à faire
-  if (!fs.existsSync(BLURRY_DIR)) {
-    return res.json({ success: true, restored: 0 });
-  }
+  if (!fs.existsSync(BLURRY_DIR)) return res.json({ success: true, restored: 0 });
 
   const EXTENSIONS = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp'];
-
   try {
     const files = fs.readdirSync(BLURRY_DIR)
       .filter(f => EXTENSIONS.includes(path.extname(f).toLowerCase()));
+    if (files.length === 0) return res.json({ success: true, restored: 0 });
 
-    if (files.length === 0) {
-      return res.json({ success: true, restored: 0 });
-    }
-
-    // Créer le dossier images/ si absent
     if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
     let restoredCount = 0;
     for (const file of files) {
-      const src  = path.join(BLURRY_DIR, file);
-      const dest = path.join(IMAGES_DIR, file);
-      fs.renameSync(src, dest);
+      fs.renameSync(path.join(BLURRY_DIR, file), path.join(IMAGES_DIR, file));
       restoredCount++;
     }
-
-    console.log(`[API] ♻️  ${restoredCount} image(s) restaurée(s) depuis images_supprimer/`);
+    console.log(`[API] ♻️  ${restoredCount} image(s) restaurée(s)`);
     res.json({ success: true, restored: restoredCount });
   } catch (err) {
-    console.error('[API] Erreur restauration :', err.message);
     res.status(500).json({ error: 'Impossible de restaurer les images' });
   }
 });
 
-// ─── Fallback SPA ─────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ─── Démarrage ────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`\n🩺 Retina Annotation App démarrée`);
+  console.log(`\n🩺 RetAnnot démarrée`);
   console.log(`   → http://localhost:${PORT}`);
-  console.log(`   → Dossier images        : ${IMAGES_DIR}`);
-  console.log(`   → Dossier images floues : ${BLURRY_DIR}`);
-  console.log(`   → Annotations           : ${XLSX_PATH}\n`);
+  console.log(`   → Images        : ${IMAGES_DIR}`);
+  console.log(`   → Images floues : ${BLURRY_DIR}`);
+  console.log(`   → Annotations   : ${XLSX_PATH}\n`);
 });
