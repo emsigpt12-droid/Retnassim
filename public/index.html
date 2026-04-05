@@ -11,8 +11,35 @@
 </head>
 <body>
 
+  <!-- ═══════════════════════════════════════════════════
+       ÉCRAN D'ACCUEIL — Sélection de l'annotateur
+  ═══════════════════════════════════════════════════ -->
+  <div class="welcome-screen" id="welcome-screen">
+    <div class="welcome-inner">
+      <div class="welcome-logo">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="2"/>
+          <circle cx="24" cy="24" r="9" fill="currentColor" opacity="0.15"/>
+          <circle cx="24" cy="24" r="3.5" fill="currentColor"/>
+          <line x1="24" y1="3" x2="24" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="42" y1="15" x2="35" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="42" y1="33" x2="35" y2="29" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="24" y1="45" x2="24" y2="37" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="6" y1="33" x2="13" y2="29" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="6" y1="15" x2="13" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1 class="welcome-title">RetAnnot</h1>
+      <p class="welcome-sub">Fundus Grading System</p>
+      <p class="welcome-prompt">Sélectionnez votre nom pour commencer</p>
+      <div class="annotator-cards" id="annotator-cards">
+        <!-- Cartes générées par JS -->
+      </div>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════ SIDEBAR (desktop) ═══════════════════════════════ -->
-  <aside class="sidebar">
+  <aside class="sidebar hidden" id="sidebar">
     <div class="sidebar-brand">
       <div class="brand-icon">
         <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -31,6 +58,15 @@
         <div class="brand-title">RetAnnot</div>
         <div class="brand-sub">Fundus Grading System</div>
       </div>
+    </div>
+
+    <!-- Badge annotateur courant -->
+    <div class="current-annotator-badge">
+      <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 13c0-3 2.5-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span id="current-annotator-name">—</span>
+      <button class="change-annotator-btn" id="change-annotator-btn" title="Changer d'annotateur">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
 
     <div class="sidebar-section">
@@ -54,26 +90,9 @@
         <div class="class-bar-row"><div class="class-bar-label">Moderate</div><div class="class-bar-track"><div class="class-bar-fill grade-2"></div></div><div class="class-bar-count" id="count-2">0</div></div>
         <div class="class-bar-row"><div class="class-bar-label">Severe</div><div class="class-bar-track"><div class="class-bar-fill grade-3"></div></div><div class="class-bar-count" id="count-3">0</div></div>
         <div class="class-bar-row"><div class="class-bar-label">Prolif.</div><div class="class-bar-track"><div class="class-bar-fill grade-4"></div></div><div class="class-bar-count" id="count-4">0</div></div>
-        <!-- ✅ NOUVEAUX -->
         <div class="class-bar-row"><div class="class-bar-label">Laser</div><div class="class-bar-track"><div class="class-bar-fill grade-5"></div></div><div class="class-bar-count" id="count-5">0</div></div>
         <div class="class-bar-row"><div class="class-bar-label">Autre</div><div class="class-bar-track"><div class="class-bar-fill grade-6"></div></div><div class="class-bar-count" id="count-6">0</div></div>
         <div class="class-bar-row"><div class="class-bar-label">Mauvaise Q.</div><div class="class-bar-track"><div class="class-bar-fill grade-7"></div></div><div class="class-bar-count" id="count-7">0</div></div>
-      </div>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="section-label">RACCOURCIS</div>
-      <div class="shortcuts">
-        <div class="shortcut-row"><kbd>1</kbd> No DR</div>
-        <div class="shortcut-row"><kbd>2</kbd> Mild</div>
-        <div class="shortcut-row"><kbd>3</kbd> Moderate</div>
-        <div class="shortcut-row"><kbd>4</kbd> Severe</div>
-        <div class="shortcut-row"><kbd>5</kbd> Proliferative DR</div>
-        <div class="shortcut-row"><kbd>6</kbd> Impacts laser</div>
-        <div class="shortcut-row"><kbd>7</kbd> Autre pathologie</div>
-        <div class="shortcut-row"><kbd>8</kbd> Mauvaise qualité</div>
-        <div class="shortcut-row"><kbd>←</kbd> <kbd>→</kbd> Navigation</div>
-        <div class="shortcut-row"><kbd>+</kbd> <kbd>−</kbd> Zoom</div>
       </div>
     </div>
 
@@ -82,17 +101,16 @@
         <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Exporter Excel
       </button>
+      <button class="dashboard-btn" id="dashboard-btn">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+        Tableau de bord
+      </button>
       <button class="delete-btn" id="delete-btn">
-        <svg viewBox="0 0 16 16" fill="none">
-          <polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Supprimer image
+        <svg viewBox="0 0 16 16" fill="none"><polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Supprimer (flou)
       </button>
       <button class="restore-btn" id="restore-btn">
-        <svg viewBox="0 0 16 16" fill="none">
-          <path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Restaurer images
       </button>
       <button class="reset-btn" id="reset-btn">
@@ -115,6 +133,15 @@
       </div>
       <button class="drawer-close" id="drawer-close">
         <svg viewBox="0 0 16 16" fill="none"><line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <!-- Annotateur courant dans le drawer -->
+    <div class="drawer-annotator">
+      <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 13c0-3 2.5-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span id="mob-annotator-name">—</span>
+      <button class="change-annotator-btn" id="mob-change-annotator-btn">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
 
@@ -161,17 +188,16 @@
           <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Exporter Excel
         </button>
+        <button class="drawer-action-btn neutral" id="mob-dashboard-btn">
+          <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+          Tableau de bord
+        </button>
         <button class="drawer-action-btn danger" id="mob-delete-btn">
-          <svg viewBox="0 0 16 16" fill="none">
-            <polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none"><polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Supprimer (flou)
         </button>
         <button class="drawer-action-btn neutral" id="mob-restore-btn">
-          <svg viewBox="0 0 16 16" fill="none">
-            <path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Restaurer images
         </button>
         <button class="drawer-action-btn danger" id="mob-reset-btn">
@@ -183,7 +209,7 @@
   </div>
 
   <!-- ════════════════════════════ MAIN CONTENT ════════════════════════════ -->
-  <main class="main">
+  <main class="main hidden" id="main">
 
     <header class="topbar">
       <div class="image-meta">
@@ -234,59 +260,41 @@
       <span class="mob-pct" id="mob-pct">0%</span>
     </div>
 
-    <!-- ─── Panneau annotation ─── -->
     <section class="annotation-panel">
       <div class="panel-label">CLASSIFICATION DR</div>
-
-      <!-- Ligne 1 : 5 grands boutons DR -->
       <div class="grade-buttons">
         <button class="grade-btn" data-grade="No DR" data-key="1">
-          <span class="grade-num">1</span>
-          <span class="grade-dot grade-0-dot"></span>
-          <span class="grade-name">No DR</span>
-          <span class="grade-desc">Pas de rétinopathie</span>
+          <span class="grade-num">1</span><span class="grade-dot grade-0-dot"></span>
+          <span class="grade-name">No DR</span><span class="grade-desc">Pas de rétinopathie</span>
         </button>
         <button class="grade-btn" data-grade="Mild" data-key="2">
-          <span class="grade-num">2</span>
-          <span class="grade-dot grade-1-dot"></span>
-          <span class="grade-name">Mild</span>
-          <span class="grade-desc">Légère</span>
+          <span class="grade-num">2</span><span class="grade-dot grade-1-dot"></span>
+          <span class="grade-name">Mild</span><span class="grade-desc">Légère</span>
         </button>
         <button class="grade-btn" data-grade="Moderate" data-key="3">
-          <span class="grade-num">3</span>
-          <span class="grade-dot grade-2-dot"></span>
-          <span class="grade-name">Moderate</span>
-          <span class="grade-desc">Modérée</span>
+          <span class="grade-num">3</span><span class="grade-dot grade-2-dot"></span>
+          <span class="grade-name">Moderate</span><span class="grade-desc">Modérée</span>
         </button>
         <button class="grade-btn" data-grade="Severe" data-key="4">
-          <span class="grade-num">4</span>
-          <span class="grade-dot grade-3-dot"></span>
-          <span class="grade-name">Severe</span>
-          <span class="grade-desc">Sévère</span>
+          <span class="grade-num">4</span><span class="grade-dot grade-3-dot"></span>
+          <span class="grade-name">Severe</span><span class="grade-desc">Sévère</span>
         </button>
         <button class="grade-btn" data-grade="Proliferative DR" data-key="5">
-          <span class="grade-num">5</span>
-          <span class="grade-dot grade-4-dot"></span>
-          <span class="grade-name">Prolif. DR</span>
-          <span class="grade-desc">Proliférante</span>
+          <span class="grade-num">5</span><span class="grade-dot grade-4-dot"></span>
+          <span class="grade-name">Prolif. DR</span><span class="grade-desc">Proliférante</span>
         </button>
       </div>
-
-      <!-- Ligne 2 : 3 petits boutons extra (rectangulaires) -->
       <div class="extra-buttons">
         <button class="extra-btn" data-grade="Impacts laser" data-key="6">
-          <span class="extra-num">6</span>
-          <span class="extra-dot grade-5-dot"></span>
+          <span class="extra-num">6</span><span class="extra-dot grade-5-dot"></span>
           <span class="extra-name">Impacts laser</span>
         </button>
         <button class="extra-btn" data-grade="Autre pathologie" data-key="7">
-          <span class="extra-num">7</span>
-          <span class="extra-dot grade-6-dot"></span>
+          <span class="extra-num">7</span><span class="extra-dot grade-6-dot"></span>
           <span class="extra-name">Autre pathologie</span>
         </button>
         <button class="extra-btn" data-grade="Mauvaise qualité" data-key="8">
-          <span class="extra-num">8</span>
-          <span class="extra-dot grade-7-dot"></span>
+          <span class="extra-num">8</span><span class="extra-dot grade-7-dot"></span>
           <span class="extra-name">Mauvaise qualité</span>
         </button>
       </div>
@@ -310,16 +318,48 @@
         <svg viewBox="0 0 16 16" fill="none"><polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </nav>
-
   </main>
 
+  <!-- Toast -->
   <div class="toast-wrap" id="toast-wrap"></div>
 
-  <div class="loading-overlay" id="loading-overlay">
+  <!-- Loading -->
+  <div class="loading-overlay hidden" id="loading-overlay">
     <div class="loading-spinner"></div>
     <p>Chargement des données…</p>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════
+       MODAL — Tableau de bord
+  ═══════════════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="dashboard-modal">
+    <div class="modal dashboard-modal">
+      <div class="dashboard-modal-header">
+        <h2 class="dashboard-modal-title">
+          <svg viewBox="0 0 16 16" fill="none" width="18" height="18"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+          Tableau de bord
+        </h2>
+        <button class="dashboard-close" id="dashboard-close">
+          <svg viewBox="0 0 16 16" fill="none"><line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="dashboard-modal-body">
+        <div class="dashboard-loading" id="dashboard-loading">
+          <div class="loading-spinner"></div>
+          <p>Chargement des statistiques…</p>
+        </div>
+        <div class="dashboard-table-wrap hidden" id="dashboard-table-wrap">
+          <div class="dashboard-scroll">
+            <table class="dashboard-table" id="dashboard-table">
+              <!-- Généré par JS -->
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal reset -->
   <div class="modal-overlay hidden" id="reset-modal">
     <div class="modal">
       <div class="modal-icon">
