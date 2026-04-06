@@ -1,6 +1,7 @@
 /**
  * server.js — Backend Express pour RetAnnot
- * Gère : images, annotations (avec annotateur), dashboard, suppression, restauration
+ * Gère : images, annotations (avec annotateur), dashboard,
+ *        suppression, restauration, route /all pour le polling
  */
 
 const express = require('express');
@@ -40,10 +41,6 @@ app.use('/images', express.static(IMAGES_DIR));
 
 // ─── Helpers Excel ───────────────────────────────────────────────────────────
 
-/**
- * Lit toutes les annotations depuis le fichier Excel.
- * Retourne un tableau de { image_id, annotation, annotateur }
- */
 function readAllRows() {
   if (!fs.existsSync(XLSX_PATH)) return [];
   try {
@@ -57,9 +54,6 @@ function readAllRows() {
   }
 }
 
-/**
- * Retourne les annotations d'un annotateur donné : { image_id: annotation }
- */
 function readAnnotationsForUser(annotateur) {
   const rows   = readAllRows();
   const result = {};
@@ -72,8 +66,21 @@ function readAnnotationsForUser(annotateur) {
 }
 
 /**
- * Écrit (ou met à jour) une annotation pour un annotateur donné.
+ * Retourne toutes les annotations (tous annotateurs confondus).
+ * Une image annotée par plusieurs annotateurs = conserve la première.
+ * { image_id: annotation }
  */
+function readAllAnnotations() {
+  const rows   = readAllRows();
+  const result = {};
+  for (const row of rows) {
+    if (row.image_id && row.annotation && !result[row.image_id]) {
+      result[row.image_id] = row.annotation;
+    }
+  }
+  return result;
+}
+
 function writeAnnotation(imageId, annotation, annotateur) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -87,7 +94,6 @@ function writeAnnotation(imageId, annotation, annotateur) {
   let sheet = workbook.Sheets[SHEET_NAME];
   let rows  = sheet ? XLSX.utils.sheet_to_json(sheet, { defval: '' }) : [];
 
-  // Trouver la ligne correspondant à cet image_id ET cet annotateur
   const idx = rows.findIndex(r => r.image_id === imageId && r.annotateur === annotateur);
   if (idx >= 0) {
     rows[idx].annotation = annotation;
@@ -106,17 +112,10 @@ function writeAnnotation(imageId, annotation, annotateur) {
 
 // ─── Routes API ───────────────────────────────────────────────────────────────
 
-/**
- * GET /api/annotators
- * Retourne la liste des annotateurs configurés
- */
 app.get('/api/annotators', (req, res) => {
   res.json({ annotators: ANNOTATORS });
 });
 
-/**
- * GET /api/images
- */
 app.get('/api/images', (req, res) => {
   if (!fs.existsSync(IMAGES_DIR)) {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
@@ -135,7 +134,7 @@ app.get('/api/images', (req, res) => {
 
 /**
  * GET /api/annotations?annotateur=xxx
- * Retourne les annotations d'un annotateur donné
+ * Annotations d'un annotateur précis
  */
 app.get('/api/annotations', (req, res) => {
   const { annotateur } = req.query;
@@ -143,8 +142,20 @@ app.get('/api/annotations', (req, res) => {
     return res.status(400).json({ error: 'Paramètre annotateur requis' });
   }
   try {
-    const annotations = readAnnotationsForUser(annotateur);
-    res.json({ annotations });
+    res.json({ annotations: readAnnotationsForUser(annotateur) });
+  } catch (err) {
+    res.status(500).json({ error: 'Impossible de lire les annotations' });
+  }
+});
+
+/**
+ * GET /api/annotations/all
+ * Toutes les annotations, tous annotateurs confondus.
+ * Utilisé par le polling pour savoir quelles images sont déjà prises.
+ */
+app.get('/api/annotations/all', (req, res) => {
+  try {
+    res.json({ annotations: readAllAnnotations() });
   } catch (err) {
     res.status(500).json({ error: 'Impossible de lire les annotations' });
   }
@@ -152,7 +163,6 @@ app.get('/api/annotations', (req, res) => {
 
 /**
  * POST /api/annotations
- * Body : { image_id, annotation, annotateur }
  */
 app.post('/api/annotations', (req, res) => {
   const { image_id, annotation, annotateur } = req.body;
@@ -167,55 +177,41 @@ app.post('/api/annotations', (req, res) => {
     console.log(`[API] Annoté : ${image_id} → ${annotation} (${annotateur})`);
     res.json({ success: true, image_id, annotation, annotateur });
   } catch (err) {
-    res.status(500).json({ error: 'Impossible de sauvegarder l\'annotation' });
+    res.status(500).json({ error: "Impossible de sauvegarder l'annotation" });
   }
 });
 
-/**
- * GET /api/export
- */
 app.get('/api/export', (req, res) => {
   if (!fs.existsSync(XLSX_PATH)) {
-    return res.status(404).json({ error: 'Aucun fichier d\'annotations trouvé' });
+    return res.status(404).json({ error: "Aucun fichier d'annotations trouvé" });
   }
   res.download(XLSX_PATH, 'annotations.xlsx');
 });
 
-/**
- * GET /api/dashboard
- * Retourne les stats par annotateur
- */
 app.get('/api/dashboard', (req, res) => {
   try {
-    const rows = readAllRows();
-
-    // Construire les stats par annotateur
+    const rows  = readAllRows();
     const stats = {};
 
-    // Initialiser tous les annotateurs configurés (même ceux sans annotation)
     for (const ann of ANNOTATORS) {
       stats[ann] = { total: 0, classes: {} };
       for (const cls of VALID_CLASSES) stats[ann].classes[cls] = 0;
     }
 
-    // Remplir avec les données réelles
     for (const row of rows) {
       const ann = row.annotateur;
       const cls = row.annotation;
       if (!ann || !cls) continue;
-
       if (!stats[ann]) {
         stats[ann] = { total: 0, classes: {} };
         for (const c of VALID_CLASSES) stats[ann].classes[c] = 0;
       }
-
       if (VALID_CLASSES.includes(cls)) {
         stats[ann].classes[cls] = (stats[ann].classes[cls] || 0) + 1;
         stats[ann].total++;
       }
     }
 
-    // Calculer le total global
     const grandTotal = { total: 0, classes: {} };
     for (const cls of VALID_CLASSES) grandTotal.classes[cls] = 0;
     for (const ann of Object.keys(stats)) {
@@ -225,22 +221,13 @@ app.get('/api/dashboard', (req, res) => {
       }
     }
 
-    res.json({
-      annotators: ANNOTATORS,
-      classes:    VALID_CLASSES,
-      stats,
-      grandTotal,
-    });
+    res.json({ annotators: ANNOTATORS, classes: VALID_CLASSES, stats, grandTotal });
   } catch (err) {
     console.error('[API] Erreur dashboard :', err.message);
     res.status(500).json({ error: 'Erreur dashboard' });
   }
 });
 
-/**
- * POST /api/reset
- * Réinitialise TOUTES les annotations (tous annotateurs)
- */
 app.post('/api/reset', (req, res) => {
   try {
     if (fs.existsSync(XLSX_PATH)) {
@@ -258,10 +245,6 @@ app.post('/api/reset', (req, res) => {
   }
 });
 
-/**
- * POST /api/delete-image
- * Déplace l'image vers images_floues/ et retire son annotation
- */
 app.post('/api/delete-image', (req, res) => {
   const { image_id } = req.body;
   if (!image_id) return res.status(400).json({ error: 'image_id requis' });
@@ -274,8 +257,6 @@ app.post('/api/delete-image', (req, res) => {
 
   try {
     fs.renameSync(srcPath, path.join(BLURRY_DIR, safeName));
-
-    // Supprimer toutes les annotations liées à cette image (tous annotateurs)
     if (fs.existsSync(XLSX_PATH)) {
       const workbook = XLSX.readFile(XLSX_PATH);
       const sheet    = workbook.Sheets[SHEET_NAME];
@@ -291,14 +272,10 @@ app.post('/api/delete-image', (req, res) => {
     console.log(`[API] 🗑️  Image déplacée : ${safeName} → images_floues/`);
     res.json({ success: true, image_id: safeName });
   } catch (err) {
-    res.status(500).json({ error: 'Impossible de déplacer l\'image' });
+    res.status(500).json({ error: "Impossible de déplacer l'image" });
   }
 });
 
-/**
- * POST /api/restore-images
- * Remet les images de images_floues/ dans images/
- */
 app.post('/api/restore-images', (req, res) => {
   if (!fs.existsSync(BLURRY_DIR)) return res.json({ success: true, restored: 0 });
 
@@ -322,7 +299,6 @@ app.post('/api/restore-images', (req, res) => {
   }
 });
 
-// Fallback SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

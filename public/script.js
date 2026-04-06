@@ -1,25 +1,29 @@
 /**
  * script.js — Frontend RetAnnot
  * Gère : sélection annotateur, navigation, annotation, zoom,
- *        raccourcis clavier, drawer mobile, tableau de bord
+ *        raccourcis clavier, drawer mobile, tableau de bord,
+ *        polling temps réel (file de travail partagée)
  */
 
 'use strict';
 
 // ─── État global ─────────────────────────────────────────────────────────────
 const state = {
-  annotateur:  null,   // nom de l'annotateur sélectionné
-  images:      [],
-  annotations: {},     // { filename: grade } pour l'annotateur courant
-  currentIdx:  0,
-  zoomLevel:   1.0,
-  isSaving:    false,
+  annotateur:      null,   // nom de l'annotateur sélectionné
+  images:          [],
+  annotations:     {},     // { filename: grade } — annotations de CET annotateur
+  allAnnotations:  {},     // { filename: grade } — toutes annotations tous annotateurs
+  currentIdx:      0,
+  zoomLevel:       1.0,
+  isSaving:        false,
+  pollingTimer:    null,   // référence au setInterval de polling
 };
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
-const ZOOM_STEP = 0.25;
-const ZOOM_MIN  = 0.25;
-const ZOOM_MAX  = 4.0;
+const ZOOM_STEP      = 0.25;
+const ZOOM_MIN       = 0.25;
+const ZOOM_MAX       = 4.0;
+const POLLING_MS     = 10000; // vérification toutes les 10 secondes
 
 const CLASSES = [
   'No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR',
@@ -30,102 +34,76 @@ const CLASS_COUNT_IDS = [
   'count-5','count-6','count-7',
 ];
 
-// Couleurs pour le tableau de bord
 const CLASS_COLORS = ['#22c55e','#eab308','#f97316','#ef4444','#a855f7','#06b6d4','#ec4899','#6b7280'];
 
 // ─── Refs DOM ─────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 const dom = {
-  // Écran accueil
-  welcomeScreen:    $('welcome-screen'),
-  annotatorCards:   $('annotator-cards'),
-
-  // App principale
-  sidebar:          $('sidebar'),
-  main:             $('main'),
-
-  // Badge annotateur
+  welcomeScreen:        $('welcome-screen'),
+  annotatorCards:       $('annotator-cards'),
+  sidebar:              $('sidebar'),
+  main:                 $('main'),
   currentAnnotatorName: $('current-annotator-name'),
   changeAnnotatorBtn:   $('change-annotator-btn'),
   mobAnnotatorName:     $('mob-annotator-name'),
   mobChangeAnnotatorBtn:$('mob-change-annotator-btn'),
-
-  // Viewer
-  fundusImg:        $('fundus-img'),
-  emptyState:       $('empty-state'),
-  annotatedBadge:   $('annotated-badge'),
-  badgeLabel:       $('badge-label'),
-
-  // Topbar
-  imageName:        $('image-name'),
-  imageCounter:     $('image-counter'),
-  zoomIn:           $('zoom-in'),
-  zoomOut:          $('zoom-out'),
-  zoomReset:        $('zoom-reset'),
-  zoomLevel:        $('zoom-level'),
-
-  // Stats
-  statAnnotated:    $('stat-annotated'),
-  statTotal:        $('stat-total'),
-  statRemaining:    $('stat-remaining'),
-  progressBar:      $('progress-bar'),
-  progressPct:      $('progress-pct'),
-
-  // Navigation
-  btnPrev:          $('btn-prev'),
-  btnNext:          $('btn-next'),
-  jumpInput:        $('jump-input'),
-  jumpBtn:          $('jump-btn'),
-  skipAnnotated:    $('skip-annotated'),
-
-  // Boutons sidebar
-  exportBtn:        $('export-btn'),
-  dashboardBtn:     $('dashboard-btn'),
-  deleteBtn:        $('delete-btn'),
-  restoreBtn:       $('restore-btn'),
-  resetBtn:         $('reset-btn'),
-
-  // Modal reset
-  resetModal:       $('reset-modal'),
-  resetConfirm:     $('reset-confirm'),
-  resetCancel:      $('reset-cancel'),
-
-  // Loading
-  loadingOverlay:   $('loading-overlay'),
-  toastWrap:        $('toast-wrap'),
-
-  // Boutons annotation
-  gradeBtns:        document.querySelectorAll('.grade-btn, .extra-btn'),
-
-  // Mobile
-  mobMenuBtn:       $('mob-menu-btn'),
-  drawer:           $('drawer'),
-  drawerOverlay:    $('drawer-overlay'),
-  drawerClose:      $('drawer-close'),
-  mobStatAnnotated: $('mob-stat-annotated'),
-  mobStatTotal:     $('mob-stat-total'),
-  mobStatRemaining: $('mob-stat-remaining'),
-  mobProgressBar:   $('mob-progress-bar'),
-  mobExportBtn:     $('mob-export-btn'),
-  mobDashboardBtn:  $('mob-dashboard-btn'),
-  mobDeleteBtn:     $('mob-delete-btn'),
-  mobRestoreBtn:    $('mob-restore-btn'),
-  mobResetBtn:      $('mob-reset-btn'),
-  mobJumpInput:     $('mob-jump-input'),
-  mobJumpBtn:       $('mob-jump-btn'),
-  mobSkip:          $('mob-skip-annotated'),
-
-  // Dashboard
-  dashboardModal:   $('dashboard-modal'),
-  dashboardClose:   $('dashboard-close'),
-  dashboardLoading: $('dashboard-loading'),
-  dashboardTableWrap: $('dashboard-table-wrap'),
-  dashboardTable:   $('dashboard-table'),
+  fundusImg:            $('fundus-img'),
+  emptyState:           $('empty-state'),
+  annotatedBadge:       $('annotated-badge'),
+  badgeLabel:           $('badge-label'),
+  imageName:            $('image-name'),
+  imageCounter:         $('image-counter'),
+  zoomIn:               $('zoom-in'),
+  zoomOut:              $('zoom-out'),
+  zoomReset:            $('zoom-reset'),
+  zoomLevel:            $('zoom-level'),
+  statAnnotated:        $('stat-annotated'),
+  statTotal:            $('stat-total'),
+  statRemaining:        $('stat-remaining'),
+  progressBar:          $('progress-bar'),
+  progressPct:          $('progress-pct'),
+  btnPrev:              $('btn-prev'),
+  btnNext:              $('btn-next'),
+  jumpInput:            $('jump-input'),
+  jumpBtn:              $('jump-btn'),
+  skipAnnotated:        $('skip-annotated'),
+  exportBtn:            $('export-btn'),
+  dashboardBtn:         $('dashboard-btn'),
+  deleteBtn:            $('delete-btn'),
+  restoreBtn:           $('restore-btn'),
+  resetBtn:             $('reset-btn'),
+  resetModal:           $('reset-modal'),
+  resetConfirm:         $('reset-confirm'),
+  resetCancel:          $('reset-cancel'),
+  loadingOverlay:       $('loading-overlay'),
+  toastWrap:            $('toast-wrap'),
+  gradeBtns:            document.querySelectorAll('.grade-btn, .extra-btn'),
+  mobMenuBtn:           $('mob-menu-btn'),
+  drawer:               $('drawer'),
+  drawerOverlay:        $('drawer-overlay'),
+  drawerClose:          $('drawer-close'),
+  mobStatAnnotated:     $('mob-stat-annotated'),
+  mobStatTotal:         $('mob-stat-total'),
+  mobStatRemaining:     $('mob-stat-remaining'),
+  mobProgressBar:       $('mob-progress-bar'),
+  mobExportBtn:         $('mob-export-btn'),
+  mobDashboardBtn:      $('mob-dashboard-btn'),
+  mobDeleteBtn:         $('mob-delete-btn'),
+  mobRestoreBtn:        $('mob-restore-btn'),
+  mobResetBtn:          $('mob-reset-btn'),
+  mobJumpInput:         $('mob-jump-input'),
+  mobJumpBtn:           $('mob-jump-btn'),
+  mobSkip:              $('mob-skip-annotated'),
+  dashboardModal:       $('dashboard-modal'),
+  dashboardClose:       $('dashboard-close'),
+  dashboardLoading:     $('dashboard-loading'),
+  dashboardTableWrap:   $('dashboard-table-wrap'),
+  dashboardTable:       $('dashboard-table'),
 };
 
 // ═══════════════════════════════════════════════════════════
-// ÉCRAN D'ACCUEIL — Sélection annotateur
+// ÉCRAN D'ACCUEIL
 // ═══════════════════════════════════════════════════════════
 
 async function loadWelcomeScreen() {
@@ -155,12 +133,13 @@ function renderAnnotatorCards(annotators) {
 
 async function selectAnnotator(name) {
   state.annotateur = name;
-
-  // Mettre à jour les badges
   dom.currentAnnotatorName.textContent = name;
   dom.mobAnnotatorName.textContent     = name;
 
-  // Masquer l'écran d'accueil, afficher l'app
+  // Activer "Ignorer annotées" par défaut (file partagée)
+  dom.skipAnnotated.checked = true;
+  dom.mobSkip.checked       = true;
+
   dom.welcomeScreen.style.animation = 'fade-out 250ms ease forwards';
   setTimeout(() => {
     dom.welcomeScreen.classList.add('hidden');
@@ -168,10 +147,11 @@ async function selectAnnotator(name) {
     dom.main.classList.remove('hidden');
   }, 240);
 
-  // Charger les données
   showLoading(true);
   try {
-    await Promise.all([loadImages(), loadAnnotations()]);
+    await Promise.all([loadImages(), loadAllAnnotations()]);
+    // annotations perso = sous-ensemble du total
+    filterMyAnnotations();
     jumpToFirstUnannotated();
     renderAll();
   } catch (err) {
@@ -181,13 +161,16 @@ async function selectAnnotator(name) {
   }
 
   bindEvents();
+  startPolling(); // ← démarrer le polling dès la connexion
 }
 
 function returnToWelcome() {
+  stopPolling(); // ← arrêter le polling quand on quitte
   closeDrawer();
-  state.annotateur  = null;
-  state.annotations = {};
-  state.currentIdx  = 0;
+  state.annotateur     = null;
+  state.annotations    = {};
+  state.allAnnotations = {};
+  state.currentIdx     = 0;
 
   dom.sidebar.classList.add('hidden');
   dom.main.classList.add('hidden');
@@ -195,10 +178,91 @@ function returnToWelcome() {
   dom.welcomeScreen.style.animation = 'fade-in 250ms ease forwards';
 }
 
-// ─── Style fade-out dynamique ─────────────────────────────────────────────────
 const styleEl = document.createElement('style');
 styleEl.textContent = '@keyframes fade-out { from { opacity:1; } to { opacity:0; } }';
 document.head.appendChild(styleEl);
+
+// ═══════════════════════════════════════════════════════════
+// POLLING — FILE DE TRAVAIL PARTAGÉE EN TEMPS RÉEL
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Démarre le polling toutes les POLLING_MS millisecondes.
+ * À chaque tick, on récupère TOUTES les annotations (tous annotateurs).
+ * Si l'image courante vient d'être annotée par quelqu'un d'autre,
+ * on passe automatiquement à la prochaine image disponible.
+ */
+function startPolling() {
+  stopPolling(); // éviter les doublons
+  state.pollingTimer = setInterval(pollAnnotations, POLLING_MS);
+  console.log(`[Polling] Démarré — vérification toutes les ${POLLING_MS / 1000}s`);
+}
+
+function stopPolling() {
+  if (state.pollingTimer) {
+    clearInterval(state.pollingTimer);
+    state.pollingTimer = null;
+    console.log('[Polling] Arrêté');
+  }
+}
+
+async function pollAnnotations() {
+  if (!state.annotateur) return;
+  try {
+    const res  = await fetch('/api/annotations/all');
+    if (!res.ok) return;
+    const data = await res.json();
+    const newAll = data.annotations || {};
+
+    // Compter les nouvelles annotations faites par d'autres
+    let newCount = 0;
+    for (const [imgId, grade] of Object.entries(newAll)) {
+      if (!state.allAnnotations[imgId]) {
+        newAll[imgId] = grade;
+        newCount++;
+      }
+    }
+
+    if (newCount === 0) return; // rien de nouveau
+
+    // Mettre à jour l'état global
+    state.allAnnotations = newAll;
+    filterMyAnnotations();
+
+    console.log(`[Polling] ${newCount} nouvelle(s) annotation(s) détectée(s)`);
+
+    // Vérifier si l'image courante est maintenant annotée par quelqu'un d'autre
+    const currentImage = state.images[state.currentIdx];
+    if (currentImage && state.allAnnotations[currentImage] && !state.annotations[currentImage]) {
+      // Cette image vient d'être prise par un autre annotateur
+      showToast('Image annotée par un autre annotateur — passage à la suivante', 'info');
+      autoSkipToNext();
+    }
+
+    // Mettre à jour les stats
+    renderStats();
+
+  } catch (err) {
+    console.warn('[Polling] Erreur :', err.message);
+  }
+}
+
+/**
+ * Passe automatiquement à la prochaine image non annotée par personne.
+ */
+function autoSkipToNext() {
+  let idx = state.currentIdx + 1;
+  while (idx < state.images.length && state.allAnnotations[state.images[idx]]) {
+    idx++;
+  }
+  if (idx >= state.images.length) {
+    showToast('Toutes les images ont été annotées ! 🎉', 'success');
+    renderGradeButtons();
+    renderBadge();
+    return;
+  }
+  goTo(idx);
+}
 
 // ═══════════════════════════════════════════════════════════
 // API
@@ -211,11 +275,28 @@ async function loadImages() {
   state.images = data.images || [];
 }
 
-async function loadAnnotations() {
-  const res  = await fetch(`/api/annotations?annotateur=${encodeURIComponent(state.annotateur)}`);
+/**
+ * Charge TOUTES les annotations (tous annotateurs confondus).
+ * Utilisé au démarrage et lors du polling.
+ */
+async function loadAllAnnotations() {
+  const res  = await fetch('/api/annotations/all');
   if (!res.ok) throw new Error('Impossible de charger les annotations');
   const data = await res.json();
-  state.annotations = data.annotations || {};
+  state.allAnnotations = data.annotations || {};
+}
+
+/**
+ * Filtre les annotations de l'annotateur courant depuis le pool global.
+ */
+function filterMyAnnotations() {
+  // On recharge depuis l'API pour avoir les annotations perso
+  fetch(`/api/annotations?annotateur=${encodeURIComponent(state.annotateur)}`)
+    .then(r => r.json())
+    .then(data => {
+      state.annotations = data.annotations || {};
+    })
+    .catch(() => {});
 }
 
 async function saveAnnotation(imageId, grade) {
@@ -275,7 +356,8 @@ function getSkip() {
 function goPrev() {
   let idx = state.currentIdx - 1;
   if (getSkip()) {
-    while (idx >= 0 && state.annotations[state.images[idx]]) idx--;
+    // Ignorer les images déjà annotées par N'IMPORTE QUEL annotateur
+    while (idx >= 0 && state.allAnnotations[state.images[idx]]) idx--;
     if (idx < 0) { showToast('Aucune image non annotée avant celle-ci'); return; }
   }
   if (idx < 0) return;
@@ -285,15 +367,19 @@ function goPrev() {
 function goNext() {
   let idx = state.currentIdx + 1;
   if (getSkip()) {
-    while (idx < state.images.length && state.annotations[state.images[idx]]) idx++;
+    // Ignorer les images déjà annotées par N'IMPORTE QUEL annotateur
+    while (idx < state.images.length && state.allAnnotations[state.images[idx]]) idx++;
     if (idx >= state.images.length) { showToast('Toutes les images ont été annotées ! 🎉', 'success'); return; }
   }
   if (idx >= state.images.length) return;
   goTo(idx);
 }
 
+/**
+ * Sauter à la première image non annotée par personne.
+ */
 function jumpToFirstUnannotated() {
-  const idx = state.images.findIndex(name => !state.annotations[name]);
+  const idx = state.images.findIndex(name => !state.allAnnotations[name]);
   state.currentIdx = idx === -1 ? 0 : idx;
 }
 
@@ -305,7 +391,16 @@ async function annotate(grade) {
   if (state.images.length === 0 || state.isSaving) return;
   const imageId = state.images[state.currentIdx];
 
-  state.annotations[imageId] = grade;
+  // Vérifier si l'image a été entre-temps annotée par quelqu'un d'autre
+  if (state.allAnnotations[imageId] && !state.annotations[imageId]) {
+    showToast('Cette image a déjà été annotée par un autre annotateur !', 'error');
+    autoSkipToNext();
+    return;
+  }
+
+  // Mise à jour locale optimiste
+  state.annotations[imageId]    = grade;
+  state.allAnnotations[imageId] = grade; // mise à jour du pool global aussi
   renderGradeButtons();
   renderBadge();
   renderStats();
@@ -319,9 +414,13 @@ async function annotate(grade) {
   state.isSaving = true;
   try {
     await saveAnnotation(imageId, grade);
+    // Passage automatique à l'image suivante après sauvegarde
+    setTimeout(() => {
+      goNext();
+      state.isSaving = false;
+    }, 260);
   } catch (err) {
     showToast('Erreur sauvegarde : ' + err.message, 'error');
-  } finally {
     state.isSaving = false;
   }
 }
@@ -342,6 +441,7 @@ async function deleteImage() {
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Erreur');
     state.images.splice(state.currentIdx, 1);
     delete state.annotations[imageId];
+    delete state.allAnnotations[imageId];
     if (state.currentIdx >= state.images.length) state.currentIdx = Math.max(0, state.images.length - 1);
     renderAll();
     showToast(`"${imageId}" déplacée vers images_floues/`, 'success');
@@ -370,7 +470,7 @@ async function restoreImages() {
 // RESET ANNOTATIONS
 // ═══════════════════════════════════════════════════════════
 
-function openResetModal() { closeDrawer(); dom.resetModal.classList.remove('hidden'); }
+function openResetModal()  { closeDrawer(); dom.resetModal.classList.remove('hidden'); }
 function closeResetModal() { dom.resetModal.classList.add('hidden'); }
 
 async function confirmReset() {
@@ -379,8 +479,9 @@ async function confirmReset() {
   try {
     const res = await fetch('/api/reset', { method: 'POST' });
     if (!res.ok) throw new Error('Échec reset');
-    state.annotations = {};
-    state.currentIdx  = 0;
+    state.annotations    = {};
+    state.allAnnotations = {};
+    state.currentIdx     = 0;
     renderAll();
     showToast('Annotations réinitialisées', 'success');
   } catch (err) {
@@ -420,52 +521,36 @@ function renderDashboardTable(data) {
   const table = dom.dashboardTable;
   table.innerHTML = '';
 
-  // ── En-tête ──────────────────────────────────────────────
   const thead = document.createElement('thead');
   const hRow  = document.createElement('tr');
-
-  // Colonne Annotateur
   const thName = document.createElement('th');
   thName.textContent = 'Annotateur';
   hRow.appendChild(thName);
-
-  // Colonne Total
   const thTotal = document.createElement('th');
   thTotal.textContent = 'Total';
   thTotal.className = 'num';
   hRow.appendChild(thTotal);
-
-  // Une colonne par classe
   classes.forEach((cls, i) => {
     const th = document.createElement('th');
     th.className = 'num';
     th.innerHTML = `<span class="th-dot" style="background:${CLASS_COLORS[i]}"></span>${cls}`;
     hRow.appendChild(th);
   });
-
   thead.appendChild(hRow);
   table.appendChild(thead);
 
-  // ── Corps ────────────────────────────────────────────────
   const tbody = document.createElement('tbody');
-
   for (const ann of annotators) {
     const s   = stats[ann] || { total: 0, classes: {} };
     const row = document.createElement('tr');
-
-    // Nom
     const tdName = document.createElement('td');
     tdName.className = 'annotator-name';
     tdName.textContent = ann;
     row.appendChild(tdName);
-
-    // Total
     const tdTotal = document.createElement('td');
     tdTotal.className = 'total-num';
     tdTotal.textContent = s.total;
     row.appendChild(tdTotal);
-
-    // Comptes par classe
     classes.forEach(cls => {
       const td = document.createElement('td');
       td.className = 'num';
@@ -473,37 +558,29 @@ function renderDashboardTable(data) {
       td.textContent = count > 0 ? count : '—';
       row.appendChild(td);
     });
-
     tbody.appendChild(row);
   }
-
   table.appendChild(tbody);
 
-  // ── Pied — ligne Total ────────────────────────────────────
-  const tfoot = document.createElement('tfoot');
-  const fRow  = document.createElement('tr');
-
+  const tfoot   = document.createElement('tfoot');
+  const fRow    = document.createElement('tr');
   const tdLabel = document.createElement('td');
-  tdLabel.className = 'total-label';
+  tdLabel.className   = 'total-label';
   tdLabel.textContent = 'Total';
   fRow.appendChild(tdLabel);
-
-  const tdGrandTotal = document.createElement('td');
-  tdGrandTotal.className = 'num';
-  tdGrandTotal.textContent = grandTotal.total;
-  fRow.appendChild(tdGrandTotal);
-
+  const tdGrand = document.createElement('td');
+  tdGrand.className   = 'num';
+  tdGrand.textContent = grandTotal.total;
+  fRow.appendChild(tdGrand);
   classes.forEach(cls => {
     const td = document.createElement('td');
-    td.className = 'num';
+    td.className   = 'num';
     td.textContent = grandTotal.classes[cls] || 0;
     fRow.appendChild(td);
   });
-
   tfoot.appendChild(fRow);
   table.appendChild(tfoot);
 
-  // Afficher
   dom.dashboardLoading.classList.add('hidden');
   dom.dashboardTableWrap.classList.remove('hidden');
 }
@@ -577,24 +654,22 @@ function renderBadge() {
 
 function renderStats() {
   const total     = state.images.length;
-  const annotated = Object.keys(state.annotations).length;
+  // Stats basées sur TOUTES les annotations (tous annotateurs)
+  const annotated = Object.keys(state.allAnnotations).length;
   const remaining = total - annotated;
   const pct       = total > 0 ? Math.round((annotated / total) * 100) : 0;
 
-  // Desktop
   if (dom.statAnnotated) dom.statAnnotated.textContent = annotated.toLocaleString('fr');
   if (dom.statTotal)     dom.statTotal.textContent     = total.toLocaleString('fr');
   if (dom.statRemaining) dom.statRemaining.textContent = remaining.toLocaleString('fr');
   if (dom.progressBar)   dom.progressBar.style.width   = pct + '%';
   if (dom.progressPct)   dom.progressPct.textContent   = pct + '%';
 
-  // Mobile drawer
   if (dom.mobStatAnnotated) dom.mobStatAnnotated.textContent = annotated.toLocaleString('fr');
   if (dom.mobStatTotal)     dom.mobStatTotal.textContent     = total.toLocaleString('fr');
   if (dom.mobStatRemaining) dom.mobStatRemaining.textContent = remaining.toLocaleString('fr');
   if (dom.mobProgressBar)   dom.mobProgressBar.style.width   = pct + '%';
 
-  // Barre mobile
   const mobFill  = $('mob-fill');
   const mobPct   = $('mob-pct');
   const mobCount = $('mob-count');
@@ -602,10 +677,9 @@ function renderStats() {
   if (mobPct)   mobPct.textContent   = pct + '%';
   if (mobCount) mobCount.textContent = `${annotated} / ${total}`;
 
-  // Distribution 8 classes
   const counts = {};
   CLASSES.forEach(c => counts[c] = 0);
-  Object.values(state.annotations).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
+  Object.values(state.allAnnotations).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
   const maxCount = Math.max(...Object.values(counts), 1);
 
   CLASSES.forEach((cls, i) => {
@@ -628,14 +702,12 @@ function renderStats() {
 let eventsBound = false;
 
 function bindEvents() {
-  if (eventsBound) return; // éviter double-bind si l'utilisateur change d'annotateur
+  if (eventsBound) return;
   eventsBound = true;
 
   dom.gradeBtns.forEach(btn => btn.addEventListener('click', () => annotate(btn.dataset.grade)));
-
   dom.btnPrev.addEventListener('click', goPrev);
   dom.btnNext.addEventListener('click', goNext);
-
   dom.jumpBtn.addEventListener('click', handleJump);
   dom.jumpInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleJump(); });
   dom.mobJumpBtn.addEventListener('click', handleMobJump);
@@ -649,39 +721,32 @@ function bindEvents() {
     setZoom(state.zoomLevel + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP));
   }, { passive: false });
 
-  // Boutons desktop
   dom.exportBtn.addEventListener('click',    () => { window.location.href = '/api/export'; });
   dom.dashboardBtn.addEventListener('click', openDashboard);
   dom.deleteBtn.addEventListener('click',    deleteImage);
   dom.restoreBtn.addEventListener('click',   restoreImages);
   dom.resetBtn.addEventListener('click',     openResetModal);
 
-  // Boutons mobile
   dom.mobExportBtn.addEventListener('click',    () => { closeDrawer(); window.location.href = '/api/export'; });
   dom.mobDashboardBtn.addEventListener('click', openDashboard);
   dom.mobDeleteBtn.addEventListener('click',    deleteImage);
   dom.mobRestoreBtn.addEventListener('click',   restoreImages);
   dom.mobResetBtn.addEventListener('click',     openResetModal);
 
-  // Changer annotateur
   dom.changeAnnotatorBtn.addEventListener('click',    returnToWelcome);
   dom.mobChangeAnnotatorBtn.addEventListener('click', returnToWelcome);
 
-  // Drawer
   dom.mobMenuBtn.addEventListener('click',    openDrawer);
   dom.drawerClose.addEventListener('click',   closeDrawer);
   dom.drawerOverlay.addEventListener('click', closeDrawer);
 
-  // Reset modal
   dom.resetCancel.addEventListener('click',  closeResetModal);
   dom.resetConfirm.addEventListener('click', confirmReset);
   dom.resetModal.addEventListener('click', e => { if (e.target === dom.resetModal) closeResetModal(); });
 
-  // Dashboard modal
   dom.dashboardClose.addEventListener('click', closeDashboard);
   dom.dashboardModal.addEventListener('click', e => { if (e.target === dom.dashboardModal) closeDashboard(); });
 
-  // Raccourcis clavier
   document.addEventListener('keydown', handleKeydown);
 }
 
