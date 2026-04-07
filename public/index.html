@@ -11,372 +11,410 @@
 </head>
 <body>
 
-  <!-- ═══════════════════════════════════════════════════
-       ÉCRAN D'ACCUEIL — Sélection de l'annotateur
-  ═══════════════════════════════════════════════════ -->
-  <div class="welcome-screen" id="welcome-screen">
-    <div class="welcome-inner">
-      <div class="welcome-logo">
-        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="2"/>
-          <circle cx="24" cy="24" r="9" fill="currentColor" opacity="0.15"/>
-          <circle cx="24" cy="24" r="3.5" fill="currentColor"/>
-          <line x1="24" y1="3" x2="24" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="42" y1="15" x2="35" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="42" y1="33" x2="35" y2="29" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="24" y1="45" x2="24" y2="37" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="6" y1="33" x2="13" y2="29" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="6" y1="15" x2="13" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
+<!-- ═══════════════════════════════════════════════════════
+     ÉTAPE 1 — Sélection de l'annotateur (cartes)
+═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-select">
+  <div class="welcome-inner">
+    <div class="welcome-logo">
+      <svg viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="2"/>
+        <circle cx="24" cy="24" r="9"  fill="currentColor" opacity="0.15"/>
+        <circle cx="24" cy="24" r="3.5" fill="currentColor"/>
+        <line x1="24" y1="3"  x2="24" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="42" y1="15" x2="35" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="42" y1="33" x2="35" y2="29" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="24" y1="45" x2="24" y2="37" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="6"  y1="33" x2="13" y2="29" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="6"  y1="15" x2="13" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="welcome-title">RetAnnot</h1>
+    <p class="welcome-sub">Fundus Grading System</p>
+    <p class="welcome-prompt">Sélectionnez votre nom</p>
+    <div class="annotator-cards" id="annotator-cards"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     ÉTAPE 2 — Formulaire de connexion
+═══════════════════════════════════════════════════════ -->
+<div class="screen hidden" id="screen-login">
+  <div class="login-card">
+    <button class="login-back-btn" id="login-back-btn">
+      <svg viewBox="0 0 16 16" fill="none"><polyline points="10,3 4,8 10,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Retour
+    </button>
+
+    <div class="login-avatar" id="login-avatar">?</div>
+    <h2 class="login-name" id="login-name">—</h2>
+    <p class="login-hint">Entrez vos identifiants pour continuer</p>
+
+    <div class="login-form">
+      <div class="login-field">
+        <label class="login-label" for="login-username">Nom d'utilisateur</label>
+        <input class="login-input" id="login-username" type="text"
+               placeholder="ex: nassim" autocomplete="username" autocapitalize="none" />
       </div>
-      <h1 class="welcome-title">RetAnnot</h1>
-      <p class="welcome-sub">Fundus Grading System</p>
-      <p class="welcome-prompt">Sélectionnez votre nom pour commencer</p>
-      <div class="annotator-cards" id="annotator-cards">
-        <!-- Cartes générées par JS -->
+      <div class="login-field">
+        <label class="login-label" for="login-password">Mot de passe</label>
+        <div class="login-pwd-wrap">
+          <input class="login-input" id="login-password" type="password"
+                 placeholder="••••••••" autocomplete="current-password" />
+          <button class="pwd-toggle" id="pwd-toggle" type="button" tabindex="-1">
+            <svg id="eye-open" viewBox="0 0 16 16" fill="none">
+              <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+            <svg id="eye-closed" viewBox="0 0 16 16" fill="none" class="hidden">
+              <path d="M1 1l14 14M6.5 6.6A2 2 0 0 0 9.4 9.5M4 4.3C2.4 5.4 1 8 1 8s2.5 5 7 5c1.4 0 2.7-.4 3.8-1M6 3.1C6.6 3 7.3 3 8 3c4.5 0 7 5 7 5s-.6 1.2-1.6 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
+
+      <div class="login-error hidden" id="login-error">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><line x1="8" y1="5" x2="8" y2="8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11" r="0.6" fill="currentColor"/></svg>
+        <span id="login-error-msg">Identifiants incorrects</span>
+      </div>
+
+      <button class="login-submit" id="login-submit">
+        Se connecter
+        <svg viewBox="0 0 16 16" fill="none"><polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     APP PRINCIPALE
+═══════════════════════════════════════════════════════ -->
+
+<!-- SIDEBAR desktop -->
+<aside class="sidebar hidden" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="16" cy="16" r="6"  fill="currentColor" opacity="0.15"/>
+        <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+        <line x1="16" y1="2"  x2="16" y2="8"  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="28" y1="10" x2="23" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="28" y1="22" x2="23" y2="19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="16" y1="30" x2="16" y2="24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="4"  y1="22" x2="9"  y2="19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="4"  y1="10" x2="9"  y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-title">RetAnnot</div>
+      <div class="brand-sub">Fundus Grading System</div>
     </div>
   </div>
 
-  <!-- ═══════════════════════════════ SIDEBAR (desktop) ═══════════════════════════════ -->
-  <aside class="sidebar hidden" id="sidebar">
-    <div class="sidebar-brand">
-      <div class="brand-icon">
-        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5"/>
-          <circle cx="16" cy="16" r="6" fill="currentColor" opacity="0.15"/>
-          <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
-          <line x1="16" y1="2" x2="16" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="28" y1="10" x2="23" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="28" y1="22" x2="23" y2="19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="16" y1="30" x2="16" y2="24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="4" y1="22" x2="9" y2="19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="4" y1="10" x2="9" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div>
-        <div class="brand-title">RetAnnot</div>
-        <div class="brand-sub">Fundus Grading System</div>
-      </div>
+  <!-- Badge annotateur -->
+  <div class="annotator-badge">
+    <div class="annotator-badge-avatar" id="sidebar-avatar">?</div>
+    <div class="annotator-badge-info">
+      <span class="annotator-badge-label">Connecté en tant que</span>
+      <span class="annotator-badge-name" id="sidebar-name">—</span>
     </div>
+    <button class="logout-btn" id="logout-btn" title="Se déconnecter">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
 
-    <!-- Badge annotateur courant -->
-    <div class="current-annotator-badge">
-      <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 13c0-3 2.5-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      <span id="current-annotator-name">—</span>
-      <button class="change-annotator-btn" id="change-annotator-btn" title="Changer d'annotateur">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+  <div class="sidebar-section">
+    <div class="section-label">PROGRESSION</div>
+    <div class="progress-stats">
+      <div class="stat-row"><span class="stat-label">Annotées</span><span class="stat-value" id="stat-annotated">0</span></div>
+      <div class="stat-row"><span class="stat-label">Total</span><span class="stat-value" id="stat-total">0</span></div>
+      <div class="stat-row"><span class="stat-label">Restantes</span><span class="stat-value" id="stat-remaining">0</span></div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="section-label">PROGRESSION</div>
-      <div class="progress-stats">
-        <div class="stat-row"><span class="stat-label">Annotées</span><span class="stat-value" id="stat-annotated">0</span></div>
-        <div class="stat-row"><span class="stat-label">Total</span><span class="stat-value" id="stat-total">0</span></div>
-        <div class="stat-row"><span class="stat-label">Restantes</span><span class="stat-value" id="stat-remaining">0</span></div>
-      </div>
-      <div class="progress-bar-wrap">
-        <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-bar"></div></div>
-        <div class="progress-pct" id="progress-pct">0%</div>
-      </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-bar"></div></div>
+      <div class="progress-pct" id="progress-pct">0%</div>
     </div>
+  </div>
 
-    <div class="sidebar-section">
-      <div class="section-label">DISTRIBUTION</div>
-      <div class="class-bars" id="class-bars">
-        <div class="class-bar-row"><div class="class-bar-label">No DR</div><div class="class-bar-track"><div class="class-bar-fill grade-0"></div></div><div class="class-bar-count" id="count-0">0</div></div>
-        <div class="class-bar-row"><div class="class-bar-label">Mild</div><div class="class-bar-track"><div class="class-bar-fill grade-1"></div></div><div class="class-bar-count" id="count-1">0</div></div>
-        <div class="class-bar-row"><div class="class-bar-label">Moderate</div><div class="class-bar-track"><div class="class-bar-fill grade-2"></div></div><div class="class-bar-count" id="count-2">0</div></div>
-        <div class="class-bar-row"><div class="class-bar-label">Severe</div><div class="class-bar-track"><div class="class-bar-fill grade-3"></div></div><div class="class-bar-count" id="count-3">0</div></div>
-        <div class="class-bar-row"><div class="class-bar-label">Prolif.</div><div class="class-bar-track"><div class="class-bar-fill grade-4"></div></div><div class="class-bar-count" id="count-4">0</div></div>
-        <div class="class-bar-row"><div class="class-bar-label">Laser</div><div class="class-bar-track"><div class="class-bar-fill grade-5"></div></div><div class="class-bar-count" id="count-5">0</div></div>
-        <div class="class-bar-row"><div class="class-bar-label">Autre</div><div class="class-bar-track"><div class="class-bar-fill grade-6"></div></div><div class="class-bar-count" id="count-6">0</div></div>
-        <div class="class-bar-row"><div class="class-bar-label">Mauvaise Q.</div><div class="class-bar-track"><div class="class-bar-fill grade-7"></div></div><div class="class-bar-count" id="count-7">0</div></div>
-      </div>
+  <div class="sidebar-section">
+    <div class="section-label">DISTRIBUTION</div>
+    <div class="class-bars">
+      <div class="class-bar-row"><div class="class-bar-label">No DR</div><div class="class-bar-track"><div class="class-bar-fill grade-0"></div></div><div class="class-bar-count" id="count-0">0</div></div>
+      <div class="class-bar-row"><div class="class-bar-label">Mild</div><div class="class-bar-track"><div class="class-bar-fill grade-1"></div></div><div class="class-bar-count" id="count-1">0</div></div>
+      <div class="class-bar-row"><div class="class-bar-label">Moderate</div><div class="class-bar-track"><div class="class-bar-fill grade-2"></div></div><div class="class-bar-count" id="count-2">0</div></div>
+      <div class="class-bar-row"><div class="class-bar-label">Severe</div><div class="class-bar-track"><div class="class-bar-fill grade-3"></div></div><div class="class-bar-count" id="count-3">0</div></div>
+      <div class="class-bar-row"><div class="class-bar-label">Prolif.</div><div class="class-bar-track"><div class="class-bar-fill grade-4"></div></div><div class="class-bar-count" id="count-4">0</div></div>
+      <div class="class-bar-row"><div class="class-bar-label">Laser</div><div class="class-bar-track"><div class="class-bar-fill grade-5"></div></div><div class="class-bar-count" id="count-5">0</div></div>
+      <div class="class-bar-row"><div class="class-bar-label">Autre</div><div class="class-bar-track"><div class="class-bar-fill grade-6"></div></div><div class="class-bar-count" id="count-6">0</div></div>
+      <div class="class-bar-row"><div class="class-bar-label">Mauvaise Q.</div><div class="class-bar-track"><div class="class-bar-fill grade-7"></div></div><div class="class-bar-count" id="count-7">0</div></div>
     </div>
+  </div>
 
-    <div class="sidebar-footer">
-      <button class="export-btn" id="export-btn">
+  <div class="sidebar-footer">
+    <button class="export-btn"    id="export-btn">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Exporter Excel
+    </button>
+    <button class="dashboard-btn" id="dashboard-btn">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+      Tableau de bord
+    </button>
+    <button class="delete-btn"    id="delete-btn">
+      <svg viewBox="0 0 16 16" fill="none"><polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Supprimer (flou)
+    </button>
+    <button class="restore-btn"   id="restore-btn">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Restaurer images
+    </button>
+    <button class="reset-btn"     id="reset-btn">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Réinitialiser annotations
+    </button>
+  </div>
+</aside>
+
+<!-- DRAWER mobile -->
+<div class="drawer-overlay hidden" id="drawer-overlay"></div>
+<div class="drawer hidden" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">
+      <svg viewBox="0 0 32 32" fill="none" width="22" height="22">
+        <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+      </svg>
+      RetAnnot
+    </div>
+    <button class="drawer-close" id="drawer-close">
+      <svg viewBox="0 0 16 16" fill="none"><line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <!-- Badge annotateur dans le drawer -->
+  <div class="drawer-annotator-badge">
+    <div class="annotator-badge-avatar small" id="drawer-avatar">?</div>
+    <span id="drawer-name">—</span>
+    <button class="logout-btn small" id="mob-logout-btn" title="Se déconnecter">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-label">PROGRESSION</div>
+    <div class="drawer-stats">
+      <div class="drawer-stat"><span>Annotées</span><strong id="mob-stat-annotated">0</strong></div>
+      <div class="drawer-stat"><span>Total</span><strong id="mob-stat-total">0</strong></div>
+      <div class="drawer-stat"><span>Restantes</span><strong id="mob-stat-remaining">0</strong></div>
+    </div>
+    <div class="drawer-progress-track"><div class="drawer-progress-fill" id="mob-progress-bar"></div></div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-label">DISTRIBUTION</div>
+    <div class="drawer-dist">
+      <div class="drawer-dist-row"><span>No DR</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-0" id="mob-grade-0"></div></div><span id="mob-count-0">0</span></div>
+      <div class="drawer-dist-row"><span>Mild</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-1" id="mob-grade-1"></div></div><span id="mob-count-1">0</span></div>
+      <div class="drawer-dist-row"><span>Moderate</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-2" id="mob-grade-2"></div></div><span id="mob-count-2">0</span></div>
+      <div class="drawer-dist-row"><span>Severe</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-3" id="mob-grade-3"></div></div><span id="mob-count-3">0</span></div>
+      <div class="drawer-dist-row"><span>Prolif.</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-4" id="mob-grade-4"></div></div><span id="mob-count-4">0</span></div>
+      <div class="drawer-dist-row"><span>Laser</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-5" id="mob-grade-5"></div></div><span id="mob-count-5">0</span></div>
+      <div class="drawer-dist-row"><span>Autre</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-6" id="mob-grade-6"></div></div><span id="mob-count-6">0</span></div>
+      <div class="drawer-dist-row"><span>Mauvaise Q.</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-7" id="mob-grade-7"></div></div><span id="mob-count-7">0</span></div>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-label">ALLER À L'IMAGE</div>
+    <div class="drawer-jump">
+      <input type="number" id="mob-jump-input" placeholder="N°" min="1" />
+      <button id="mob-jump-btn">Aller</button>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-label">ACTIONS</div>
+    <div class="drawer-actions">
+      <button class="drawer-action-btn export"   id="mob-export-btn">
         <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Exporter Excel
       </button>
-      <button class="dashboard-btn" id="dashboard-btn">
+      <button class="drawer-action-btn neutral"  id="mob-dashboard-btn">
         <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
         Tableau de bord
       </button>
-      <button class="delete-btn" id="delete-btn">
+      <button class="drawer-action-btn danger"   id="mob-delete-btn">
         <svg viewBox="0 0 16 16" fill="none"><polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Supprimer (flou)
       </button>
-      <button class="restore-btn" id="restore-btn">
+      <button class="drawer-action-btn neutral"  id="mob-restore-btn">
         <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Restaurer images
       </button>
-      <button class="reset-btn" id="reset-btn">
+      <button class="drawer-action-btn danger"   id="mob-reset-btn">
         <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Réinitialiser annotations
       </button>
     </div>
-  </aside>
+  </div>
+</div>
 
-  <!-- ═══════════════════════════════ MOBILE DRAWER ═══════════════════════════════ -->
-  <div class="drawer-overlay hidden" id="drawer-overlay"></div>
-  <div class="drawer hidden" id="drawer">
-    <div class="drawer-header">
-      <div class="drawer-title">
-        <svg viewBox="0 0 32 32" fill="none" width="22" height="22">
-          <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5"/>
-          <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+<!-- MAIN -->
+<main class="main hidden" id="main">
+  <header class="topbar">
+    <div class="image-meta">
+      <button class="mob-menu-btn" id="mob-menu-btn">
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="3" y1="5"  x2="17" y2="5"  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="3" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        RetAnnot
+      </button>
+      <span class="image-name" id="image-name">—</span>
+      <span class="image-counter" id="image-counter">— / —</span>
+    </div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoom-out">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <span class="zoom-level" id="zoom-level">100%</span>
+      <button class="zoom-btn" id="zoom-in">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="4.5" x2="7" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <button class="zoom-btn" id="zoom-reset">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.5 4M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="viewer-wrap" id="viewer-wrap">
+    <div class="viewer" id="viewer">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4"/><circle cx="32" cy="32" r="12" stroke="currentColor" stroke-width="1.5"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity="0.3"/></svg>
+        </div>
+        <p>Aucune image trouvée</p>
+        <small>Placez vos images dans <code>images/&lt;votre_dossier&gt;/</code></small>
       </div>
-      <button class="drawer-close" id="drawer-close">
+      <img class="fundus-img hidden" id="fundus-img" alt="Fond d'œil" draggable="false" />
+      <div class="annotated-badge hidden" id="annotated-badge">
+        <svg viewBox="0 0 16 16" fill="none"><polyline points="2,8 6,12 14,4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="badge-label">No DR</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mobile-progress" id="mobile-progress">
+    <span class="mob-count" id="mob-count">0 / 0</span>
+    <div class="mob-track"><div class="mob-fill" id="mob-fill"></div></div>
+    <span class="mob-pct" id="mob-pct">0%</span>
+  </div>
+
+  <section class="annotation-panel">
+    <div class="panel-label">CLASSIFICATION DR</div>
+    <div class="grade-buttons">
+      <button class="grade-btn" data-grade="No DR">
+        <span class="grade-num">1</span><span class="grade-dot grade-0-dot"></span>
+        <span class="grade-name">No DR</span><span class="grade-desc">Pas de rétinopathie</span>
+      </button>
+      <button class="grade-btn" data-grade="Mild">
+        <span class="grade-num">2</span><span class="grade-dot grade-1-dot"></span>
+        <span class="grade-name">Mild</span><span class="grade-desc">Légère</span>
+      </button>
+      <button class="grade-btn" data-grade="Moderate">
+        <span class="grade-num">3</span><span class="grade-dot grade-2-dot"></span>
+        <span class="grade-name">Moderate</span><span class="grade-desc">Modérée</span>
+      </button>
+      <button class="grade-btn" data-grade="Severe">
+        <span class="grade-num">4</span><span class="grade-dot grade-3-dot"></span>
+        <span class="grade-name">Severe</span><span class="grade-desc">Sévère</span>
+      </button>
+      <button class="grade-btn" data-grade="Proliferative DR">
+        <span class="grade-num">5</span><span class="grade-dot grade-4-dot"></span>
+        <span class="grade-name">Prolif. DR</span><span class="grade-desc">Proliférante</span>
+      </button>
+    </div>
+    <div class="extra-buttons">
+      <button class="extra-btn" data-grade="Impacts laser">
+        <span class="extra-num">6</span><span class="extra-dot grade-5-dot"></span>
+        <span class="extra-name">Impacts laser</span>
+      </button>
+      <button class="extra-btn" data-grade="Autre pathologie">
+        <span class="extra-num">7</span><span class="extra-dot grade-6-dot"></span>
+        <span class="extra-name">Autre pathologie</span>
+      </button>
+      <button class="extra-btn" data-grade="Mauvaise qualité">
+        <span class="extra-num">8</span><span class="extra-dot grade-7-dot"></span>
+        <span class="extra-name">Mauvaise qualité</span>
+      </button>
+    </div>
+  </section>
+
+  <nav class="nav-bar">
+    <button class="nav-btn" id="btn-prev">
+      <svg viewBox="0 0 16 16" fill="none"><polyline points="10,3 4,8 10,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Précédent
+    </button>
+    <div class="nav-jump">
+      <input type="number" id="jump-input" placeholder="N°" min="1" />
+      <button id="jump-btn">Aller</button>
+    </div>
+    <button class="nav-btn primary" id="btn-next">
+      Suivant
+      <svg viewBox="0 0 16 16" fill="none"><polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </nav>
+</main>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- Loading -->
+<div class="loading-overlay hidden" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <p>Chargement…</p>
+</div>
+
+<!-- Modal Dashboard -->
+<div class="modal-overlay hidden" id="dashboard-modal">
+  <div class="modal dashboard-modal">
+    <div class="dashboard-modal-header">
+      <h2 class="dashboard-modal-title">
+        <svg viewBox="0 0 16 16" fill="none" width="18" height="18"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+        Tableau de bord
+      </h2>
+      <button class="dashboard-close" id="dashboard-close">
         <svg viewBox="0 0 16 16" fill="none"><line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-
-    <!-- Annotateur courant dans le drawer -->
-    <div class="drawer-annotator">
-      <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 13c0-3 2.5-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      <span id="mob-annotator-name">—</span>
-      <button class="change-annotator-btn" id="mob-change-annotator-btn">
-        <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-label">PROGRESSION</div>
-      <div class="drawer-stats">
-        <div class="drawer-stat"><span>Annotées</span><strong id="mob-stat-annotated">0</strong></div>
-        <div class="drawer-stat"><span>Total</span><strong id="mob-stat-total">0</strong></div>
-        <div class="drawer-stat"><span>Restantes</span><strong id="mob-stat-remaining">0</strong></div>
+    <div class="dashboard-modal-body">
+      <div class="dashboard-loading" id="dashboard-loading">
+        <div class="loading-spinner"></div><p>Chargement des statistiques…</p>
       </div>
-      <div class="drawer-progress-track"><div class="drawer-progress-fill" id="mob-progress-bar"></div></div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-label">DISTRIBUTION</div>
-      <div class="drawer-dist">
-        <div class="drawer-dist-row"><span>No DR</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-0" id="mob-grade-0"></div></div><span id="mob-count-0">0</span></div>
-        <div class="drawer-dist-row"><span>Mild</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-1" id="mob-grade-1"></div></div><span id="mob-count-1">0</span></div>
-        <div class="drawer-dist-row"><span>Moderate</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-2" id="mob-grade-2"></div></div><span id="mob-count-2">0</span></div>
-        <div class="drawer-dist-row"><span>Severe</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-3" id="mob-grade-3"></div></div><span id="mob-count-3">0</span></div>
-        <div class="drawer-dist-row"><span>Prolif.</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-4" id="mob-grade-4"></div></div><span id="mob-count-4">0</span></div>
-        <div class="drawer-dist-row"><span>Laser</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-5" id="mob-grade-5"></div></div><span id="mob-count-5">0</span></div>
-        <div class="drawer-dist-row"><span>Autre</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-6" id="mob-grade-6"></div></div><span id="mob-count-6">0</span></div>
-        <div class="drawer-dist-row"><span>Mauvaise Q.</span><div class="drawer-dist-track"><div class="drawer-dist-fill grade-7" id="mob-grade-7"></div></div><span id="mob-count-7">0</span></div>
-      </div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-label">ALLER À L'IMAGE</div>
-      <div class="drawer-jump">
-        <input type="number" id="mob-jump-input" placeholder="N°" min="1" />
-        <button id="mob-jump-btn">Aller</button>
-      </div>
-      <label class="drawer-skip">
-        <input type="checkbox" id="mob-skip-annotated" />
-        <span>Ignorer les images annotées</span>
-      </label>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-label">ACTIONS</div>
-      <div class="drawer-actions">
-        <button class="drawer-action-btn export" id="mob-export-btn">
-          <svg viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Exporter Excel
-        </button>
-        <button class="drawer-action-btn neutral" id="mob-dashboard-btn">
-          <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
-          Tableau de bord
-        </button>
-        <button class="drawer-action-btn danger" id="mob-delete-btn">
-          <svg viewBox="0 0 16 16" fill="none"><polyline points="2,4 14,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M5 4V2h6v2M6 7v5M10 7v5M3 4l1 10h8l1-10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Supprimer (flou)
-        </button>
-        <button class="drawer-action-btn neutral" id="mob-restore-btn">
-          <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Restaurer images
-        </button>
-        <button class="drawer-action-btn danger" id="mob-reset-btn">
-          <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.2 3.6M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="5" x2="8" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="5" y1="8" x2="11" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          Réinitialiser annotations
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════ MAIN CONTENT ════════════════════════════ -->
-  <main class="main hidden" id="main">
-
-    <header class="topbar">
-      <div class="image-meta">
-        <button class="mob-menu-btn" id="mob-menu-btn">
-          <svg viewBox="0 0 20 20" fill="none">
-            <line x1="3" y1="5" x2="17" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="3" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <span class="image-name" id="image-name">—</span>
-        <span class="image-counter" id="image-counter">— / —</span>
-      </div>
-      <div class="zoom-controls">
-        <button class="zoom-btn" id="zoom-out" title="Zoom −">
-          <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </button>
-        <span class="zoom-level" id="zoom-level">100%</span>
-        <button class="zoom-btn" id="zoom-in" title="Zoom +">
-          <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.5" y1="7" x2="9.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="4.5" x2="7" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </button>
-        <button class="zoom-btn" id="zoom-reset" title="Réinitialiser zoom">
-          <svg viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 1 1 1.5 4M2 12V8h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
-    </header>
-
-    <div class="viewer-wrap" id="viewer-wrap">
-      <div class="viewer" id="viewer">
-        <div class="empty-state" id="empty-state">
-          <div class="empty-icon">
-            <svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4"/><circle cx="32" cy="32" r="12" stroke="currentColor" stroke-width="1.5"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity="0.3"/></svg>
-          </div>
-          <p>Aucune image trouvée</p>
-          <small>Placez vos images dans le dossier <code>images/</code></small>
-        </div>
-        <img class="fundus-img hidden" id="fundus-img" alt="Fond d'œil" draggable="false" />
-        <div class="annotated-badge hidden" id="annotated-badge">
-          <svg viewBox="0 0 16 16" fill="none"><polyline points="2,8 6,12 14,4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span id="badge-label">No DR</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="mobile-progress" id="mobile-progress">
-      <span class="mob-count" id="mob-count">0 / 0</span>
-      <div class="mob-track"><div class="mob-fill" id="mob-fill"></div></div>
-      <span class="mob-pct" id="mob-pct">0%</span>
-    </div>
-
-    <section class="annotation-panel">
-      <div class="panel-label">CLASSIFICATION DR</div>
-      <div class="grade-buttons">
-        <button class="grade-btn" data-grade="No DR" data-key="1">
-          <span class="grade-num">1</span><span class="grade-dot grade-0-dot"></span>
-          <span class="grade-name">No DR</span><span class="grade-desc">Pas de rétinopathie</span>
-        </button>
-        <button class="grade-btn" data-grade="Mild" data-key="2">
-          <span class="grade-num">2</span><span class="grade-dot grade-1-dot"></span>
-          <span class="grade-name">Mild</span><span class="grade-desc">Légère</span>
-        </button>
-        <button class="grade-btn" data-grade="Moderate" data-key="3">
-          <span class="grade-num">3</span><span class="grade-dot grade-2-dot"></span>
-          <span class="grade-name">Moderate</span><span class="grade-desc">Modérée</span>
-        </button>
-        <button class="grade-btn" data-grade="Severe" data-key="4">
-          <span class="grade-num">4</span><span class="grade-dot grade-3-dot"></span>
-          <span class="grade-name">Severe</span><span class="grade-desc">Sévère</span>
-        </button>
-        <button class="grade-btn" data-grade="Proliferative DR" data-key="5">
-          <span class="grade-num">5</span><span class="grade-dot grade-4-dot"></span>
-          <span class="grade-name">Prolif. DR</span><span class="grade-desc">Proliférante</span>
-        </button>
-      </div>
-      <div class="extra-buttons">
-        <button class="extra-btn" data-grade="Impacts laser" data-key="6">
-          <span class="extra-num">6</span><span class="extra-dot grade-5-dot"></span>
-          <span class="extra-name">Impacts laser</span>
-        </button>
-        <button class="extra-btn" data-grade="Autre pathologie" data-key="7">
-          <span class="extra-num">7</span><span class="extra-dot grade-6-dot"></span>
-          <span class="extra-name">Autre pathologie</span>
-        </button>
-        <button class="extra-btn" data-grade="Mauvaise qualité" data-key="8">
-          <span class="extra-num">8</span><span class="extra-dot grade-7-dot"></span>
-          <span class="extra-name">Mauvaise qualité</span>
-        </button>
-      </div>
-    </section>
-
-    <nav class="nav-bar">
-      <button class="nav-btn" id="btn-prev">
-        <svg viewBox="0 0 16 16" fill="none"><polyline points="10,3 4,8 10,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Précédent
-      </button>
-      <div class="nav-jump">
-        <input type="number" id="jump-input" placeholder="N°" min="1" />
-        <button id="jump-btn">Aller</button>
-      </div>
-      <label class="skip-label">
-        <input type="checkbox" id="skip-annotated" />
-        <span>Ignorer annotées</span>
-      </label>
-      <button class="nav-btn primary" id="btn-next">
-        Suivant
-        <svg viewBox="0 0 16 16" fill="none"><polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-    </nav>
-  </main>
-
-  <!-- Toast -->
-  <div class="toast-wrap" id="toast-wrap"></div>
-
-  <!-- Loading -->
-  <div class="loading-overlay hidden" id="loading-overlay">
-    <div class="loading-spinner"></div>
-    <p>Chargement des données…</p>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════
-       MODAL — Tableau de bord
-  ═══════════════════════════════════════════════════ -->
-  <div class="modal-overlay hidden" id="dashboard-modal">
-    <div class="modal dashboard-modal">
-      <div class="dashboard-modal-header">
-        <h2 class="dashboard-modal-title">
-          <svg viewBox="0 0 16 16" fill="none" width="18" height="18"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
-          Tableau de bord
-        </h2>
-        <button class="dashboard-close" id="dashboard-close">
-          <svg viewBox="0 0 16 16" fill="none"><line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </button>
-      </div>
-      <div class="dashboard-modal-body">
-        <div class="dashboard-loading" id="dashboard-loading">
-          <div class="loading-spinner"></div>
-          <p>Chargement des statistiques…</p>
-        </div>
-        <div class="dashboard-table-wrap hidden" id="dashboard-table-wrap">
-          <div class="dashboard-scroll">
-            <table class="dashboard-table" id="dashboard-table">
-              <!-- Généré par JS -->
-            </table>
-          </div>
+      <div class="dashboard-table-wrap hidden" id="dashboard-table-wrap">
+        <div class="dashboard-scroll">
+          <table class="dashboard-table" id="dashboard-table"></table>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Modal reset -->
-  <div class="modal-overlay hidden" id="reset-modal">
-    <div class="modal">
-      <div class="modal-icon">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h2 class="modal-title">Réinitialiser toutes les annotations ?</h2>
-      <p class="modal-desc">Cette action est <strong>irréversible</strong>. Toutes les annotations seront supprimées.</p>
-      <div class="modal-actions">
-        <button class="modal-btn cancel" id="reset-cancel">Annuler</button>
-        <button class="modal-btn confirm" id="reset-confirm">Oui, réinitialiser</button>
-      </div>
+<!-- Modal Reset -->
+<div class="modal-overlay hidden" id="reset-modal">
+  <div class="modal">
+    <div class="modal-icon">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h2 class="modal-title">Réinitialiser mes annotations ?</h2>
+    <p class="modal-desc">Cette action est <strong>irréversible</strong>. Vos annotations seront supprimées.</p>
+    <div class="modal-actions">
+      <button class="modal-btn cancel"  id="reset-cancel">Annuler</button>
+      <button class="modal-btn confirm" id="reset-confirm">Oui, réinitialiser</button>
     </div>
   </div>
+</div>
 
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
