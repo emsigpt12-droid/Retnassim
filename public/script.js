@@ -125,6 +125,7 @@ const dom = {
   // Bouton retour admin (dans sidebar quand admin contrôle un compte)
   backAdminBtn:     $('back-admin-btn'),
   mobBackAdminBtn:  $('mob-back-admin-btn'),
+  mobBackAdminSection: $('mob-back-admin-section'),
 
   fundusImg:      $('fundus-img'),
   emptyState:     $('empty-state'),
@@ -481,6 +482,9 @@ function updateSidebarForRole(isAdminMode) {
   // Bouton retour admin
   if (dom.backAdminBtn) {
     dom.backAdminBtn.classList.toggle('hidden', !isAdminMode);
+  }
+  if (dom.mobBackAdminSection) {
+    dom.mobBackAdminSection.classList.toggle('hidden', !isAdminMode);
   }
   if (dom.mobBackAdminBtn) {
     dom.mobBackAdminBtn.classList.toggle('hidden', !isAdminMode);
