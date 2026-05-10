@@ -215,7 +215,7 @@ app.get('/api/export', (req, res) => {
 
     const tmpPath = path.join(DATA_DIR, 'annotations_export.xlsx');
     XLSX.writeFile(wb, tmpPath);
-    res.download(tmpPath, 'annotations_enriched.xlsx');
+    res.download(tmpPath, 'annotations_data.xlsx');
   } catch (err) {
     res.status(500).json({ error: 'Erreur export' });
   }
