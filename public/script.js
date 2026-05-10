@@ -1,10 +1,9 @@
 /**
  * script.js — Frontend RetAnnot
- * Sélection annotateur → Login → Annotation (images séparées par annotateur)
- *
- * CORRECTIF : bindLoginEvents() est désormais appelé au DOMContentLoaded
- * afin que les boutons Retour, Se connecter et Afficher MDP fonctionnent
- * dès l'affichage de l'écran de login, sans attendre de connexion réussie.
+ * + Checklist 7 lésions avec contraintes cliniques et auto-sélection
+ * + Sélecteur de confiance (Certain / Probable / Incertain)
+ * + Système Admin Dr Sbai (accès direct aux comptes annotateurs)
+ * + Sidebar épurée pour annotateurs normaux (pas de boutons d'action)
  */
 
 'use strict';
@@ -12,8 +11,11 @@
 // ─── État global ─────────────────────────────────────────────────────────────
 const state = {
   annotateur:    null,
+  role:          null,       // 'annotator' | 'admin'
+  viaAdmin:      false,      // true si admin a pris le contrôle d'un compte
+  adminName:     null,       // nom de l'admin connecté (pour retour)
   images:        [],
-  annotations:   {},
+  annotations:   {},         // { imageId: { grade, lesions, confidence } }
   currentIdx:    0,
   zoomLevel:     1.0,
   isSaving:      false,
@@ -32,6 +34,51 @@ const CLASSES = [
 const CLASS_COUNT_IDS = ['count-0','count-1','count-2','count-3','count-4','count-5','count-6','count-7'];
 const CLASS_COLORS    = ['#22c55e','#eab308','#f97316','#ef4444','#a855f7','#06b6d4','#ec4899','#6b7280'];
 
+// 7 lésions dans l'ordre clinique
+const LESIONS = [
+  { key: 'MA',   label: 'Microanévrysmes',    short: 'MA'   },
+  { key: 'HEM',  label: 'Hémorragies',         short: 'HEM'  },
+  { key: 'HE',   label: 'Exsudats durs',       short: 'HE'   },
+  { key: 'CWS',  label: 'Nodules cotonneux',   short: 'CWS'  },
+  { key: 'IRMA', label: 'IRMA',                short: 'IRMA' },
+  { key: 'VA',   label: 'Anomalies veineuses', short: 'VA'   },
+  { key: 'NV',   label: 'Néovascularisation',  short: 'NV'   },
+];
+
+// Lésions activées (cochables) par grade
+// true = activée, false = grisée
+const LESION_ENABLED_BY_GRADE = {
+  'No DR':           { MA: false, HEM: false, HE: false, CWS: false, IRMA: false, VA: false, NV: false },
+  'Mild':            { MA: true,  HEM: false, HE: false, CWS: false, IRMA: false, VA: false, NV: false },
+  'Moderate':        { MA: true,  HEM: true,  HE: true,  CWS: true,  IRMA: false, VA: false, NV: false },
+  'Severe':          { MA: true,  HEM: true,  HE: true,  CWS: true,  IRMA: true,  VA: true,  NV: false },
+  'Proliferative DR':{ MA: true,  HEM: true,  HE: true,  CWS: true,  IRMA: true,  VA: true,  NV: true  },
+  'Impacts laser':   { MA: true,  HEM: true,  HE: true,  CWS: true,  IRMA: true,  VA: true,  NV: true  },
+  'Autre pathologie':{ MA: true,  HEM: true,  HE: true,  CWS: true,  IRMA: true,  VA: true,  NV: true  },
+  'Mauvaise qualité':{ MA: false, HEM: false, HE: false, CWS: false, IRMA: false, VA: false, NV: false },
+};
+
+// Auto-sélection hiérarchique : cocher X → auto-cocher les lésions antérieures
+const LESION_IMPLIES = {
+  'MA':   [],
+  'HEM':  ['MA'],
+  'HE':   ['MA', 'HEM'],
+  'CWS':  ['MA', 'HEM'],
+  'IRMA': ['MA', 'HEM'],
+  'VA':   ['MA', 'HEM'],
+  'NV':   ['MA', 'HEM', 'HE', 'CWS', 'IRMA', 'VA'],
+};
+
+const CONFIDENCE_LEVELS = [
+  { label: 'Certain',   value: 1.0 },
+  { label: 'Probable',  value: 0.7 },
+  { label: 'Incertain', value: 0.3 },
+];
+
+const GRADE_TO_INT = {
+  'No DR': 0, 'Mild': 1, 'Moderate': 2, 'Severe': 3, 'Proliferative DR': 4,
+};
+
 function imageFolder(name) {
   return name.replace(/[\s.]/g, '_');
 }
@@ -42,6 +89,7 @@ const $ = id => document.getElementById(id);
 const dom = {
   screenSelect:   $('screen-select'),
   screenLogin:    $('screen-login'),
+  screenAdmin:    $('screen-admin'),
   sidebar:        $('sidebar'),
   main:           $('main'),
 
@@ -59,12 +107,24 @@ const dom = {
   eyeOpen:        $('eye-open'),
   eyeClosed:      $('eye-closed'),
 
+  // Admin screen
+  adminName:      $('admin-name'),
+  adminAvatar:    $('admin-avatar'),
+  adminLogoutBtn: $('admin-logout-btn'),
+  adminExportBtn: $('admin-export-btn'),
+  adminDashBtn:   $('admin-dash-btn'),
+  adminCardsList: $('admin-cards-list'),
+
   sidebarAvatar:  $('sidebar-avatar'),
   sidebarName:    $('sidebar-name'),
   logoutBtn:      $('logout-btn'),
   drawerAvatar:   $('drawer-avatar'),
   drawerName:     $('drawer-name'),
   mobLogoutBtn:   $('mob-logout-btn'),
+
+  // Bouton retour admin (dans sidebar quand admin contrôle un compte)
+  backAdminBtn:     $('back-admin-btn'),
+  mobBackAdminBtn:  $('mob-back-admin-btn'),
 
   fundusImg:      $('fundus-img'),
   emptyState:     $('empty-state'),
@@ -94,6 +154,14 @@ const dom = {
   deleteBtn:      $('delete-btn'),
   restoreBtn:     $('restore-btn'),
   resetBtn:       $('reset-btn'),
+
+  // Panneau lésions
+  lesionPanel:    $('lesion-panel'),
+  lesionChecks:   {},   // rempli dynamiquement
+
+  // Sélecteur confiance
+  confidencePanel: $('confidence-panel'),
+  confidenceBtns:  document.querySelectorAll('.confidence-btn'),
 
   resetModal:     $('reset-modal'),
   resetConfirm:   $('reset-confirm'),
@@ -125,6 +193,10 @@ const dom = {
   dashboardLoading:   $('dashboard-loading'),
   dashboardTableWrap: $('dashboard-table-wrap'),
   dashboardTable:     $('dashboard-table'),
+
+  // Sidebar admin-only buttons section
+  sidebarAdminActions: $('sidebar-admin-actions'),
+  mobAdminActions:     $('mob-admin-actions'),
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -220,7 +292,11 @@ async function submitLogin() {
       return;
     }
 
-    await enterApp(data.name);
+    if (data.role === 'admin') {
+      await enterAdmin(data.name);
+    } else {
+      await enterApp(data.name, 'annotator', false);
+    }
 
   } catch {
     showLoginError('Erreur de connexion au serveur');
@@ -236,13 +312,133 @@ function showLoginError(msg) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// ÉCRAN ADMIN
+// ═══════════════════════════════════════════════════════════
+
+async function enterAdmin(name) {
+  state.annotateur = name;
+  state.role       = 'admin';
+  state.adminName  = name;
+
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  dom.adminAvatar.textContent = initials;
+  dom.adminName.textContent   = name;
+
+  dom.screenLogin.style.animation = 'fade-out 200ms ease forwards';
+  setTimeout(() => {
+    dom.screenLogin.classList.add('hidden');
+    dom.screenAdmin.classList.remove('hidden');
+    dom.screenAdmin.style.animation = 'fade-in 200ms ease forwards';
+  }, 190);
+
+  await loadAdminAnnotatorCards();
+}
+
+async function loadAdminAnnotatorCards() {
+  try {
+    const res  = await fetch('/api/annotators');
+    const data = await res.json();
+    dom.adminCardsList.innerHTML = '';
+
+    // Stats pour chaque annotateur
+    let dashData = null;
+    try {
+      const dr = await fetch('/api/dashboard');
+      dashData = await dr.json();
+    } catch {}
+
+    const list = (dashData?.annotators || data.annotators || [])
+      .filter(name => name !== state.adminName);
+
+    list.forEach((name, i) => {
+      const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const total = dashData ? (dashData.stats[name]?.total || 0) : 0;
+
+      const card = document.createElement('button');
+      card.className = 'admin-annotator-card';
+      card.style.animationDelay = `${i * 60}ms`;
+      card.innerHTML = `
+        <div class="admin-card-avatar">${initials}</div>
+        <div class="admin-card-info">
+          <span class="admin-card-name">${name}</span>
+          <span class="admin-card-stat">${total} annotation${total > 1 ? 's' : ''}</span>
+        </div>
+        <div class="admin-card-arrow">
+          <svg viewBox="0 0 16 16" fill="none"><polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      `;
+      card.addEventListener('click', () => adminEnterAnnotator(name));
+      dom.adminCardsList.appendChild(card);
+    });
+  } catch {
+    showToast('Erreur chargement annotateurs', 'error');
+  }
+}
+
+async function adminEnterAnnotator(annotatorName) {
+  try {
+    const res = await fetch('/api/admin/enter-annotator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_name: state.adminName, annotateur: annotatorName }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Erreur accès', 'error'); return; }
+
+    dom.screenAdmin.style.animation = 'fade-out 200ms ease forwards';
+    setTimeout(() => {
+      dom.screenAdmin.classList.add('hidden');
+    }, 190);
+
+    await enterApp(annotatorName, 'annotator', true);
+  } catch {
+    showToast('Erreur connexion', 'error');
+  }
+}
+
+function logoutAdmin() {
+  state.annotateur = null;
+  state.role       = null;
+  state.adminName  = null;
+
+  dom.screenAdmin.style.animation = 'fade-out 200ms ease forwards';
+  setTimeout(() => {
+    dom.screenAdmin.classList.add('hidden');
+    dom.screenSelect.classList.remove('hidden');
+    dom.screenSelect.style.animation = 'fade-in 250ms ease forwards';
+  }, 190);
+}
+
+function backToAdmin() {
+  closeDrawer();
+  // Réinitialiser l'état annotateur
+  state.annotateur  = state.adminName;
+  state.role        = 'admin';
+  state.viaAdmin    = false;
+  state.annotations = {};
+  state.currentIdx  = 0;
+  state.images      = [];
+
+  dom.sidebar.classList.add('hidden');
+  dom.main.classList.add('hidden');
+
+  dom.screenAdmin.classList.remove('hidden');
+  dom.screenAdmin.style.animation = 'fade-in 250ms ease forwards';
+
+  // Rafraîchir les stats
+  loadAdminAnnotatorCards();
+}
+
+// ═══════════════════════════════════════════════════════════
 // ÉTAPE 3 — Entrée dans l'application
 // ═══════════════════════════════════════════════════════════
 
 let eventsBound = false;
 
-async function enterApp(name) {
+async function enterApp(name, role, viaAdmin) {
   state.annotateur = name;
+  state.role       = role;
+  state.viaAdmin   = viaAdmin;
 
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   dom.sidebarAvatar.textContent = initials;
@@ -250,12 +446,12 @@ async function enterApp(name) {
   dom.drawerAvatar.textContent  = initials;
   dom.drawerName.textContent    = name;
 
-  dom.screenLogin.style.animation = 'fade-out 200ms ease forwards';
-  setTimeout(() => {
-    dom.screenLogin.classList.add('hidden');
-    dom.sidebar.classList.remove('hidden');
-    dom.main.classList.remove('hidden');
-  }, 190);
+  // Montrer/cacher les boutons selon le rôle
+  updateSidebarForRole(viaAdmin);
+
+  dom.screenLogin.classList.add('hidden');
+  dom.sidebar.classList.remove('hidden');
+  dom.main.classList.remove('hidden');
 
   showLoading(true);
   try {
@@ -274,9 +470,29 @@ async function enterApp(name) {
   }
 }
 
+function updateSidebarForRole(isAdminMode) {
+  // Boutons admin (supprimer, restaurer, reset)
+  if (dom.sidebarAdminActions) {
+    dom.sidebarAdminActions.classList.toggle('hidden', !isAdminMode);
+  }
+  if (dom.mobAdminActions) {
+    dom.mobAdminActions.classList.toggle('hidden', !isAdminMode);
+  }
+  // Bouton retour admin
+  if (dom.backAdminBtn) {
+    dom.backAdminBtn.classList.toggle('hidden', !isAdminMode);
+  }
+  if (dom.mobBackAdminBtn) {
+    dom.mobBackAdminBtn.classList.toggle('hidden', !isAdminMode);
+  }
+}
+
 function logout() {
   closeDrawer();
   state.annotateur  = null;
+  state.role        = null;
+  state.viaAdmin    = false;
+  state.adminName   = null;
   state.annotations = {};
   state.currentIdx  = 0;
   state.images      = [];
@@ -302,14 +518,39 @@ async function loadAnnotations() {
   const res  = await fetch(`/api/annotations?annotateur=${encodeURIComponent(state.annotateur)}`);
   if (!res.ok) throw new Error('Impossible de charger les annotations');
   const data = await res.json();
-  state.annotations = data.annotations || {};
+  // Normaliser : supporter l'ancien format (string) et le nouveau (objet)
+  const raw = data.annotations || {};
+  state.annotations = {};
+  for (const [imgId, val] of Object.entries(raw)) {
+    if (typeof val === 'string') {
+      state.annotations[imgId] = { grade: val, lesions: emptyLesions(), confidence: 1.0 };
+    } else {
+      state.annotations[imgId] = {
+        grade:      val.grade || '',
+        lesions:    val.lesions || emptyLesions(),
+        confidence: val.confidence !== undefined ? val.confidence : 1.0,
+      };
+    }
+  }
 }
 
-async function saveAnnotation(imageId, grade) {
+function emptyLesions() {
+  const l = {};
+  LESIONS.forEach(le => l[le.key] = 0);
+  return l;
+}
+
+async function saveAnnotation(imageId, grade, lesions, confidence) {
   const res = await fetch('/api/annotations', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ image_id: imageId, annotation: grade, annotateur: state.annotateur }),
+    body:    JSON.stringify({
+      image_id:   imageId,
+      annotation: grade,
+      annotateur: state.annotateur,
+      lesions,
+      confidence,
+    }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -349,6 +590,8 @@ function goTo(idx) {
   renderTopbar();
   renderGradeButtons();
   renderBadge();
+  renderLesionPanel();
+  renderConfidencePanel();
 }
 
 function goPrev() {
@@ -367,17 +610,31 @@ function jumpToFirstUnannotated() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ANNOTATION
+// ANNOTATION — GRADE
 // ═══════════════════════════════════════════════════════════
 
 async function annotate(grade) {
   if (state.images.length === 0 || state.isSaving) return;
   const imageId = state.images[state.currentIdx];
 
-  state.annotations[imageId] = grade;
+  // Récupérer l'annotation existante ou créer une nouvelle
+  const existing = state.annotations[imageId] || { grade: '', lesions: emptyLesions(), confidence: 1.0 };
+
+  // Si changement de grade, recalculer les lésions
+  let lesions = existing.lesions;
+  if (existing.grade !== grade) {
+    lesions = computeDefaultLesions(grade, existing.lesions);
+  }
+
+  const confidence = existing.confidence || 1.0;
+
+  state.annotations[imageId] = { grade, lesions, confidence };
+
   renderGradeButtons();
   renderBadge();
   renderStats();
+  renderLesionPanel();
+  renderConfidencePanel();
 
   const btn = document.querySelector(`[data-grade="${CSS.escape(grade)}"]`);
   if (btn) {
@@ -387,7 +644,7 @@ async function annotate(grade) {
 
   state.isSaving = true;
   try {
-    await saveAnnotation(imageId, grade);
+    await saveAnnotation(imageId, grade, lesions, confidence);
   } catch (err) {
     showToast('Erreur sauvegarde : ' + err.message, 'error');
   } finally {
@@ -395,8 +652,88 @@ async function annotate(grade) {
   }
 }
 
+// Calculer les lésions par défaut selon le grade
+function computeDefaultLesions(grade, existingLesions) {
+  const enabled = LESION_ENABLED_BY_GRADE[grade] || {};
+  const lesions = emptyLesions();
+
+  // Auto-cocher MA pour Mild
+  if (grade === 'Mild') {
+    lesions['MA'] = 1;
+    return lesions;
+  }
+
+  // Pour les autres grades, garder les lésions existantes si elles sont encore activées
+  if (existingLesions) {
+    LESIONS.forEach(l => {
+      if (enabled[l.key] && existingLesions[l.key]) {
+        lesions[l.key] = existingLesions[l.key];
+      }
+    });
+  }
+
+  return lesions;
+}
+
 // ═══════════════════════════════════════════════════════════
-// SUPPRIMER / RESTAURER
+// ANNOTATION — LÉSIONS
+// ═══════════════════════════════════════════════════════════
+
+function toggleLesion(key, checked) {
+  const imageId = state.images[state.currentIdx];
+  if (!imageId) return;
+
+  const ann = state.annotations[imageId] || { grade: '', lesions: emptyLesions(), confidence: 1.0 };
+  const lesions = { ...ann.lesions };
+
+  if (checked) {
+    // Auto-sélection hiérarchique : cocher les lésions antérieures
+    lesions[key] = 1;
+    const implies = LESION_IMPLIES[key] || [];
+    implies.forEach(k => { lesions[k] = 1; });
+  } else {
+    lesions[key] = 0;
+  }
+
+  state.annotations[imageId] = { ...ann, lesions };
+  renderLesionCheckboxes(ann.grade, lesions);
+  debounceSave(imageId);
+}
+
+let saveTimer = null;
+function debounceSave(imageId) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const ann = state.annotations[imageId];
+    if (!ann) return;
+    state.isSaving = true;
+    try {
+      await saveAnnotation(imageId, ann.grade, ann.lesions, ann.confidence);
+    } catch (err) {
+      showToast('Erreur sauvegarde : ' + err.message, 'error');
+    } finally {
+      state.isSaving = false;
+    }
+  }, 400);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ANNOTATION — CONFIANCE
+// ═══════════════════════════════════════════════════════════
+
+function setConfidence(value) {
+  const imageId = state.images[state.currentIdx];
+  if (!imageId) return;
+
+  const ann = state.annotations[imageId] || { grade: '', lesions: emptyLesions(), confidence: 1.0 };
+  state.annotations[imageId] = { ...ann, confidence: value };
+
+  renderConfidenceButtons(value);
+  debounceSave(imageId);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUPPRIMER / RESTAURER (admin only)
 // ═══════════════════════════════════════════════════════════
 
 async function deleteImage() {
@@ -435,7 +772,7 @@ async function restoreImages() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// RESET
+// RESET (admin only)
 // ═══════════════════════════════════════════════════════════
 
 function openResetModal() { closeDrawer(); dom.resetModal.classList.remove('hidden'); }
@@ -555,7 +892,13 @@ function setZoom(level) {
 // ═══════════════════════════════════════════════════════════
 
 function renderAll() {
-  renderImage(); renderTopbar(); renderGradeButtons(); renderBadge(); renderStats();
+  renderImage();
+  renderTopbar();
+  renderGradeButtons();
+  renderBadge();
+  renderStats();
+  renderLesionPanel();
+  renderConfidencePanel();
 }
 
 function renderImage() {
@@ -587,19 +930,87 @@ function renderTopbar() {
 
 function renderGradeButtons() {
   const current  = state.images[state.currentIdx];
-  const existing = current ? state.annotations[current] : null;
+  const ann      = current ? state.annotations[current] : null;
+  const existing = ann ? ann.grade : null;
   dom.gradeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.grade === existing));
 }
 
 function renderBadge() {
   const current    = state.images[state.currentIdx];
-  const annotation = current ? state.annotations[current] : null;
+  const ann        = current ? state.annotations[current] : null;
+  const annotation = ann ? ann.grade : null;
   if (annotation) {
     dom.annotatedBadge.classList.remove('hidden');
     dom.badgeLabel.textContent = annotation;
   } else {
     dom.annotatedBadge.classList.add('hidden');
   }
+}
+
+// ─── Panneau lésions ──────────────────────────────────────
+
+function renderLesionPanel() {
+  const current = state.images[state.currentIdx];
+  const ann     = current ? state.annotations[current] : null;
+  const grade   = ann ? ann.grade : null;
+  const lesions = ann ? ann.lesions : emptyLesions();
+
+  // Afficher le panneau seulement si grade est un grade DR (pas Mauvaise qualité, etc.)
+  const showPanel = grade && grade !== 'No DR' && grade !== 'Mauvaise qualité';
+
+  if (dom.lesionPanel) {
+    dom.lesionPanel.classList.toggle('hidden', !showPanel);
+    if (showPanel) {
+      renderLesionCheckboxes(grade, lesions);
+    }
+  }
+
+  // Panneau confiance
+  if (dom.confidencePanel) {
+    dom.confidencePanel.classList.toggle('hidden', !grade);
+    if (grade) {
+      renderConfidenceButtons(ann ? ann.confidence : 1.0);
+    }
+  }
+}
+
+function renderLesionCheckboxes(grade, lesions) {
+  const enabled = LESION_ENABLED_BY_GRADE[grade] || {};
+  const container = $('lesion-checks-container');
+  if (!container) return;
+
+  LESIONS.forEach(l => {
+    const wrap = $(`lesion-wrap-${l.key}`);
+    const cb   = $(`lesion-cb-${l.key}`);
+    if (!wrap || !cb) return;
+
+    const isEnabled = enabled[l.key] === true;
+    const isChecked = lesions[l.key] === 1;
+
+    cb.checked  = isChecked;
+    cb.disabled = !isEnabled;
+    wrap.classList.toggle('lesion-disabled', !isEnabled);
+    wrap.classList.toggle('lesion-checked',  isChecked && isEnabled);
+  });
+}
+
+function renderConfidencePanel() {
+  const current = state.images[state.currentIdx];
+  const ann     = current ? state.annotations[current] : null;
+  const grade   = ann ? ann.grade : null;
+
+  if (dom.confidencePanel) {
+    dom.confidencePanel.classList.toggle('hidden', !grade);
+    if (grade) {
+      renderConfidenceButtons(ann ? ann.confidence : 1.0);
+    }
+  }
+}
+
+function renderConfidenceButtons(value) {
+  document.querySelectorAll('.confidence-btn').forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.confidence) === value);
+  });
 }
 
 function renderStats() {
@@ -628,7 +1039,10 @@ function renderStats() {
 
   const counts = {};
   CLASSES.forEach(c => counts[c] = 0);
-  Object.values(state.annotations).forEach(v => { if (counts[v] !== undefined) counts[v]++; });
+  Object.values(state.annotations).forEach(v => {
+    const grade = typeof v === 'string' ? v : v.grade;
+    if (counts[grade] !== undefined) counts[grade]++;
+  });
   const maxCount = Math.max(...Object.values(counts), 1);
 
   CLASSES.forEach((cls, i) => {
@@ -645,17 +1059,12 @@ function renderStats() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// EVENTS — LOGIN (liés au démarrage, avant toute connexion)
+// EVENTS — LOGIN
 // ═══════════════════════════════════════════════════════════
 
 function bindLoginEvents() {
-  // Bouton Retour
   dom.loginBackBtn.addEventListener('click', goBackToSelect);
-
-  // Bouton Se connecter
   dom.loginSubmit.addEventListener('click', submitLogin);
-
-  // Entrée clavier sur les champs login
   dom.loginPassword.addEventListener('keydown', e => {
     if (e.key === 'Enter') submitLogin();
   });
@@ -668,27 +1077,49 @@ function bindLoginEvents() {
     dom.loginUsername.classList.remove('error');
     dom.loginPassword.classList.remove('error');
   });
-
-  // Afficher / masquer le mot de passe
   dom.pwdToggle.addEventListener('click', () => {
     const isText = dom.loginPassword.type === 'text';
     dom.loginPassword.type = isText ? 'password' : 'text';
     dom.eyeOpen.classList.toggle('hidden', !isText);
     dom.eyeClosed.classList.toggle('hidden', isText);
   });
+
+  // Admin screen events
+  if (dom.adminLogoutBtn) dom.adminLogoutBtn.addEventListener('click', logoutAdmin);
+  if (dom.adminExportBtn) dom.adminExportBtn.addEventListener('click', () => { window.location.href = '/api/export'; });
+  if (dom.adminDashBtn)   dom.adminDashBtn.addEventListener('click', openDashboard);
+
+  // Dashboard modal must also work from the admin screen before app events are bound
+  if (dom.dashboardClose) dom.dashboardClose.addEventListener('click', closeDashboard);
+  if (dom.dashboardModal) dom.dashboardModal.addEventListener('click', e => { if (e.target === dom.dashboardModal) closeDashboard(); });
 }
 
 // ═══════════════════════════════════════════════════════════
-// EVENTS — APPLICATION (liés après connexion réussie)
+// EVENTS — APPLICATION
 // ═══════════════════════════════════════════════════════════
 
 function bindAppEvents() {
-  // Logout
-  dom.logoutBtn.addEventListener('click',    logout);
+  // Logout / Back to admin
+  dom.logoutBtn.addEventListener('click', logout);
   dom.mobLogoutBtn.addEventListener('click', logout);
+  if (dom.backAdminBtn)    dom.backAdminBtn.addEventListener('click', backToAdmin);
+  if (dom.mobBackAdminBtn) dom.mobBackAdminBtn.addEventListener('click', backToAdmin);
 
   // Grade buttons
   dom.gradeBtns.forEach(btn => btn.addEventListener('click', () => annotate(btn.dataset.grade)));
+
+  // Lésion checkboxes
+  LESIONS.forEach(l => {
+    const cb = $(`lesion-cb-${l.key}`);
+    if (cb) {
+      cb.addEventListener('change', e => toggleLesion(l.key, e.target.checked));
+    }
+  });
+
+  // Confidence buttons
+  document.querySelectorAll('.confidence-btn').forEach(btn => {
+    btn.addEventListener('click', () => setConfidence(parseFloat(btn.dataset.confidence)));
+  });
 
   // Navigation
   dom.btnPrev.addEventListener('click', goPrev);
@@ -709,19 +1140,15 @@ function bindAppEvents() {
     setZoom(state.zoomLevel + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP));
   }, { passive: false });
 
-  // Boutons desktop
-  dom.exportBtn.addEventListener('click',    () => { window.location.href = '/api/export'; });
-  dom.dashboardBtn.addEventListener('click', openDashboard);
-  dom.deleteBtn.addEventListener('click',    deleteImage);
-  dom.restoreBtn.addEventListener('click',   restoreImages);
-  dom.resetBtn.addEventListener('click',     openResetModal);
+  // Boutons admin-only desktop
+  if (dom.deleteBtn)  dom.deleteBtn.addEventListener('click',  deleteImage);
+  if (dom.restoreBtn) dom.restoreBtn.addEventListener('click', restoreImages);
+  if (dom.resetBtn)   dom.resetBtn.addEventListener('click',   openResetModal);
 
-  // Boutons mobile drawer
-  dom.mobExportBtn.addEventListener('click',    () => { closeDrawer(); window.location.href = '/api/export'; });
-  dom.mobDashboardBtn.addEventListener('click', openDashboard);
-  dom.mobDeleteBtn.addEventListener('click',    deleteImage);
-  dom.mobRestoreBtn.addEventListener('click',   restoreImages);
-  dom.mobResetBtn.addEventListener('click',     openResetModal);
+  // Boutons admin-only mobile
+  if (dom.mobDeleteBtn)  dom.mobDeleteBtn.addEventListener('click',  deleteImage);
+  if (dom.mobRestoreBtn) dom.mobRestoreBtn.addEventListener('click', restoreImages);
+  if (dom.mobResetBtn)   dom.mobResetBtn.addEventListener('click',   openResetModal);
 
   // Drawer
   dom.mobMenuBtn.addEventListener('click',    openDrawer);
@@ -800,6 +1227,6 @@ function showLoading(visible) {
 
 // ─── Démarrage ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  bindLoginEvents();   // ← Boutons login actifs immédiatement
+  bindLoginEvents();
   loadWelcomeScreen();
 });

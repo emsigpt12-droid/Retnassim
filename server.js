@@ -1,6 +1,9 @@
 /**
  * server.js — Backend Express RetAnnot
- * Auth par annotateur, images séparées par dossier, annotations Excel
+ * Auth par annotateur, images séparées par dossier, annotations Excel enrichi
+ * + Système admin Dr Sbai
+ * + Annotations de lésions (MA, HEM, HE, CWS, IRMA, VA, NV)
+ * + Sélecteur de confiance (Certain/Probable/Incertain)
  */
 
 const express = require('express');
@@ -19,19 +22,27 @@ const SHEET_NAME  = 'Annotations';
 
 // ─── Annotateurs & mots de passe ─────────────────────────────────────────────
 const ANNOTATORS = [
-  { name: 'Dr El Bakkali',  username: 'elbakkali',  password: 'elbakkali123'  },
-  { name: 'Dr Boulanouar',  username: 'boulanouar', password: 'boulanouar123' },
-  { name: 'Dr El Moussaif', username: 'elmoussaif', password: 'elmoussaif123' },
-  { name: 'Dr El Arabi',    username: 'elarabi',    password: 'elarabi123'    },
-  { name: 'Dr Essafi',      username: 'essafi',     password: 'essafi123'     },
-  { name: 'Dr Zekraoui',    username: 'zekraoui',   password: 'zekraoui123'   },
-  { name: 'Dr Hafidi',      username: 'hafidi',     password: 'hafidi123'     },
+  { name: 'Dr El Bakkali',  username: 'elbakkali',  password: 'elbakkali123',  role: 'annotator' },
+  { name: 'Dr Boulanouar',  username: 'boulanouar', password: 'boulanouar123', role: 'annotator' },
+  { name: 'Dr El Moussaif', username: 'elmoussaif', password: 'elmoussaif123', role: 'annotator' },
+  { name: 'Dr El Arabi',    username: 'elarabi',    password: 'elarabi123',    role: 'annotator' },
+  { name: 'Dr Essafi',      username: 'essafi',     password: 'essafi123',     role: 'annotator' },
+  { name: 'Dr Zekraoui',    username: 'zekraoui',   password: 'zekraoui123',   role: 'annotator' },
+  { name: 'Dr Hafidi',      username: 'hafidi',     password: 'hafidi123',     role: 'annotator' },
+  { name: 'Dr Sbai',        username: 'sbai',        password: 'sbai123',       role: 'admin'     },
 ];
+
+const GRADE_TO_INT = {
+  'No DR': 0, 'Mild': 1, 'Moderate': 2, 'Severe': 3, 'Proliferative DR': 4,
+};
 
 const VALID_CLASSES = [
   'No DR', 'Mild', 'Moderate', 'Severe', 'Proliferative DR',
   'Impacts laser', 'Autre pathologie', 'Mauvaise qualité',
 ];
+
+const LESION_KEYS = ['MA', 'HEM', 'HE', 'CWS', 'IRMA', 'VA', 'NV'];
+const CONFIDENCE_VALUES = [1.0, 0.7, 0.3];
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -65,25 +76,62 @@ function readAllRows() {
 function readAnnotationsForUser(annotateur) {
   const result = {};
   for (const row of readAllRows()) {
-    if (row.image_id && row.annotateur === annotateur)
-      result[row.image_id] = row.annotation || '';
+    if (row.image_id && row.annotateur === annotateur) {
+      result[row.image_id] = {
+        grade:      row.annotation || '',
+        lesions: {
+          MA:   row.MA   !== undefined ? Number(row.MA)   : 0,
+          HEM:  row.HEM  !== undefined ? Number(row.HEM)  : 0,
+          HE:   row.HE   !== undefined ? Number(row.HE)   : 0,
+          CWS:  row.CWS  !== undefined ? Number(row.CWS)  : 0,
+          IRMA: row.IRMA !== undefined ? Number(row.IRMA) : 0,
+          VA:   row.VA   !== undefined ? Number(row.VA)   : 0,
+          NV:   row.NV   !== undefined ? Number(row.NV)   : 0,
+        },
+        confidence: row.confidence !== undefined ? Number(row.confidence) : 1.0,
+      };
+    }
   }
   return result;
 }
 
-function writeAnnotation(imageId, annotation, annotateur) {
+function writeAnnotation(imageId, annotation, annotateur, lesions, confidence) {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   let wb = fs.existsSync(XLSX_PATH) ? XLSX.readFile(XLSX_PATH) : XLSX.utils.book_new();
   let sheet = wb.Sheets[SHEET_NAME];
   let rows  = sheet ? XLSX.utils.sheet_to_json(sheet, { defval: '' }) : [];
+
+  const gradeInt = GRADE_TO_INT[annotation] !== undefined ? GRADE_TO_INT[annotation] : null;
+
+  const newRow = {
+    image_id:   imageId,
+    annotation,
+    grade:      gradeInt !== null ? gradeInt : '',
+    MA:         lesions ? (lesions.MA   || 0) : 0,
+    HEM:        lesions ? (lesions.HEM  || 0) : 0,
+    HE:         lesions ? (lesions.HE   || 0) : 0,
+    CWS:        lesions ? (lesions.CWS  || 0) : 0,
+    IRMA:       lesions ? (lesions.IRMA || 0) : 0,
+    VA:         lesions ? (lesions.VA   || 0) : 0,
+    NV:         lesions ? (lesions.NV   || 0) : 0,
+    confidence: confidence !== undefined ? confidence : 1.0,
+    annotateur,
+  };
+
   const idx = rows.findIndex(r => r.image_id === imageId && r.annotateur === annotateur);
-  if (idx >= 0) { rows[idx].annotation = annotation; }
-  else { rows.push({ image_id: imageId, annotation, annotateur }); }
-  wb.Sheets[SHEET_NAME] = XLSX.utils.json_to_sheet(rows, { header: ['image_id','annotation','annotateur'] });
+  if (idx >= 0) { rows[idx] = newRow; }
+  else { rows.push(newRow); }
+
+  const headers = ['image_id', 'annotation', 'grade', 'MA', 'HEM', 'HE', 'CWS', 'IRMA', 'VA', 'NV', 'confidence', 'annotateur'];
+  wb.Sheets[SHEET_NAME] = XLSX.utils.json_to_sheet(rows, { header: headers });
   if (!wb.SheetNames.includes(SHEET_NAME)) wb.SheetNames.push(SHEET_NAME);
   XLSX.writeFile(wb, XLSX_PATH);
 }
 
+// ─── API Routes ───────────────────────────────────────────────────────────────
+
+// ✅ FIX : Retourne TOUS les utilisateurs (annotateurs + admin)
+// pour que Dr Sbai apparaisse dans l'écran de sélection
 app.get('/api/annotators', (req, res) => {
   res.json({ annotators: ANNOTATORS.map(a => a.name) });
 });
@@ -93,8 +141,18 @@ app.post('/api/login', (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Username et mot de passe requis' });
   const user = authenticate(username.trim(), password);
   if (!user) return res.status(401).json({ error: 'Identifiants incorrects' });
-  console.log(`[Auth] Connexion : ${user.name}`);
-  res.json({ success: true, name: user.name });
+  console.log(`[Auth] Connexion : ${user.name} (${user.role})`);
+  res.json({ success: true, name: user.name, role: user.role });
+});
+
+// Accès admin direct à un compte annotateur (sans mot de passe)
+app.post('/api/admin/enter-annotator', (req, res) => {
+  const { admin_name, annotateur } = req.body;
+  const admin = ANNOTATORS.find(a => a.name === admin_name && a.role === 'admin');
+  if (!admin) return res.status(403).json({ error: 'Accès refusé' });
+  const annotatorUser = ANNOTATORS.find(a => a.name === annotateur && a.role === 'annotator');
+  if (!annotatorUser) return res.status(404).json({ error: 'Annotateur introuvable' });
+  res.json({ success: true, name: annotateur, role: 'annotator', via_admin: true });
 });
 
 app.get('/api/images', (req, res) => {
@@ -119,19 +177,48 @@ app.get('/api/annotations', (req, res) => {
 });
 
 app.post('/api/annotations', (req, res) => {
-  const { image_id, annotation, annotateur } = req.body;
+  const { image_id, annotation, annotateur, lesions, confidence } = req.body;
   if (!image_id || !annotation || !annotateur) return res.status(400).json({ error: 'Parametres requis' });
   if (!VALID_CLASSES.includes(annotation)) return res.status(400).json({ error: 'Annotation invalide' });
+  if (confidence !== undefined && !CONFIDENCE_VALUES.includes(confidence))
+    return res.status(400).json({ error: 'Confiance invalide' });
   try {
-    writeAnnotation(image_id, annotation, annotateur);
-    console.log(`[API] Annote : ${image_id} -> ${annotation} (${annotateur})`);
+    writeAnnotation(image_id, annotation, annotateur, lesions || {}, confidence !== undefined ? confidence : 1.0);
+    console.log(`[API] Annote : ${image_id} -> ${annotation} (${annotateur}) conf=${confidence}`);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: 'Impossible de sauvegarder' }); }
 });
 
+// Export enrichi (admin uniquement côté client)
 app.get('/api/export', (req, res) => {
   if (!fs.existsSync(XLSX_PATH)) return res.status(404).json({ error: 'Aucun fichier' });
-  res.download(XLSX_PATH, 'annotations.xlsx');
+  try {
+    const rows = readAllRows();
+    const exportRows = rows.map(row => ({
+      image_id:   row.image_id,
+      grade:      row.grade !== '' ? Number(row.grade) : (GRADE_TO_INT[row.annotation] !== undefined ? GRADE_TO_INT[row.annotation] : ''),
+      MA:         Number(row.MA   || 0),
+      HEM:        Number(row.HEM  || 0),
+      HE:         Number(row.HE   || 0),
+      CWS:        Number(row.CWS  || 0),
+      IRMA:       Number(row.IRMA || 0),
+      VA:         Number(row.VA   || 0),
+      NV:         Number(row.NV   || 0),
+      confidence: Number(row.confidence || 1.0),
+      annotator:  row.annotateur,
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const headers = ['image_id', 'grade', 'MA', 'HEM', 'HE', 'CWS', 'IRMA', 'VA', 'NV', 'confidence', 'annotator'];
+    const sheet = XLSX.utils.json_to_sheet(exportRows, { header: headers });
+    XLSX.utils.book_append_sheet(wb, sheet, 'Annotations');
+
+    const tmpPath = path.join(DATA_DIR, 'annotations_export.xlsx');
+    XLSX.writeFile(wb, tmpPath);
+    res.download(tmpPath, 'annotations_enriched.xlsx');
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur export' });
+  }
 });
 
 app.post('/api/delete-image', (req, res) => {
@@ -150,7 +237,8 @@ app.post('/api/delete-image', (req, res) => {
       if (sheet) {
         let rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         rows = rows.filter(r => !(r.image_id === safeName && r.annotateur === annotateur));
-        wb.Sheets[SHEET_NAME] = XLSX.utils.json_to_sheet(rows, { header: ['image_id','annotation','annotateur'] });
+        const headers = ['image_id', 'annotation', 'grade', 'MA', 'HEM', 'HE', 'CWS', 'IRMA', 'VA', 'NV', 'confidence', 'annotateur'];
+        wb.Sheets[SHEET_NAME] = XLSX.utils.json_to_sheet(rows, { header: headers });
         XLSX.writeFile(wb, XLSX_PATH);
       }
     }
@@ -184,7 +272,8 @@ app.post('/api/reset', (req, res) => {
       if (sheet) {
         let rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         rows = annotateur ? rows.filter(r => r.annotateur !== annotateur) : [];
-        wb.Sheets[SHEET_NAME] = XLSX.utils.json_to_sheet(rows, { header: ['image_id','annotation','annotateur'] });
+        const headers = ['image_id', 'annotation', 'grade', 'MA', 'HEM', 'HE', 'CWS', 'IRMA', 'VA', 'NV', 'confidence', 'annotateur'];
+        wb.Sheets[SHEET_NAME] = XLSX.utils.json_to_sheet(rows, { header: headers });
         XLSX.writeFile(wb, XLSX_PATH);
       }
     }
@@ -195,8 +284,10 @@ app.post('/api/reset', (req, res) => {
 app.get('/api/dashboard', (req, res) => {
   try {
     const rows  = readAllRows();
+    // Dashboard : uniquement les annotateurs (pas l'admin)
+    const annotatorList = ANNOTATORS.filter(a => a.role === 'annotator');
     const stats = {};
-    for (const ann of ANNOTATORS) {
+    for (const ann of annotatorList) {
       stats[ann.name] = { total: 0, classes: {} };
       for (const cls of VALID_CLASSES) stats[ann.name].classes[cls] = 0;
     }
@@ -212,7 +303,7 @@ app.get('/api/dashboard', (req, res) => {
       grandTotal.total += stats[ann].total;
       for (const cls of VALID_CLASSES) grandTotal.classes[cls] += stats[ann].classes[cls] || 0;
     }
-    res.json({ annotators: ANNOTATORS.map(a => a.name), classes: VALID_CLASSES, stats, grandTotal });
+    res.json({ annotators: annotatorList.map(a => a.name), classes: VALID_CLASSES, stats, grandTotal });
   } catch (err) { res.status(500).json({ error: 'Erreur dashboard' }); }
 });
 
@@ -222,11 +313,13 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\nRetAnnot demarree -> http://localhost:${PORT}`);
-  console.log(`   Annotateurs :`);
+  console.log(`   Utilisateurs :`);
   ANNOTATORS.forEach(a => {
-    const dir = imagesDir(a.name);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    console.log(`     - ${a.name} (${a.username})`);
+    if (a.role === 'annotator') {
+      const dir = imagesDir(a.name);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    }
+    console.log(`     - ${a.name} (${a.username}) [${a.role}]`);
   });
   console.log('');
 });
