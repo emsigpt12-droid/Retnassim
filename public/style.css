@@ -596,11 +596,11 @@ code   { font-family: var(--font-mono); font-size: 12px; }
 
   /* Lésions mobile */
   .lesion-checks-container { grid-template-columns: repeat(7,1fr); gap:4px; }
-  .lesion-box { padding:6px 2px; }
+  .lesion-box { padding:6px 2px; min-height:68px; }
   .lesion-check-icon { width:16px; height:16px; }
   .lesion-check-icon svg { width:8px; height:8px; }
   .lesion-code { font-size:9px; }
-  .lesion-label { display:none; }
+  .lesion-label { display:block; font-size:8px; line-height:1.2; }
 
   /* Confiance mobile */
   .confidence-btn { padding:7px 8px; font-size:11px; }
