@@ -4,7 +4,6 @@
  * + Sélecteur de confiance (Certain / Probable / Incertain)
  * + Système Admin Dr Sbai (accès direct aux comptes annotateurs)
  * + Sidebar épurée pour annotateurs normaux (pas de boutons d'action)
- * + Bouton Suivant bloqué tant que grade + lésions + confiance non remplis
  */
 
 'use strict';
@@ -12,11 +11,11 @@
 // ─── État global ─────────────────────────────────────────────────────────────
 const state = {
   annotateur:    null,
-  role:          null,
-  viaAdmin:      false,
-  adminName:     null,
+  role:          null,       // 'annotator' | 'admin'
+  viaAdmin:      false,      // true si admin a pris le contrôle d'un compte
+  adminName:     null,       // nom de l'admin connecté (pour retour)
   images:        [],
-  annotations:   {},
+  annotations:   {},         // { imageId: { grade, lesions, confidence } }
   currentIdx:    0,
   zoomLevel:     1.0,
   isSaving:      false,
@@ -35,6 +34,7 @@ const CLASSES = [
 const CLASS_COUNT_IDS = ['count-0','count-1','count-2','count-3','count-4','count-5','count-6','count-7'];
 const CLASS_COLORS    = ['#22c55e','#eab308','#f97316','#ef4444','#a855f7','#06b6d4','#ec4899','#6b7280'];
 
+// 7 lésions dans l'ordre clinique
 const LESIONS = [
   { key: 'MA',   label: 'Microanévrysmes',    short: 'MA'   },
   { key: 'HEM',  label: 'Hémorragies',         short: 'HEM'  },
@@ -45,6 +45,8 @@ const LESIONS = [
   { key: 'NV',   label: 'Néovascularisation',  short: 'NV'   },
 ];
 
+// Lésions activées (cochables) par grade
+// true = activée, false = grisée
 const LESION_ENABLED_BY_GRADE = {
   'No DR':           { MA: false, HEM: false, HE: false, CWS: false, IRMA: false, VA: false, NV: false },
   'Mild':            { MA: true,  HEM: false, HE: false, CWS: false, IRMA: false, VA: false, NV: false },
@@ -56,6 +58,7 @@ const LESION_ENABLED_BY_GRADE = {
   'Mauvaise qualité':{ MA: false, HEM: false, HE: false, CWS: false, IRMA: false, VA: false, NV: false },
 };
 
+// Auto-sélection hiérarchique : cocher X → auto-cocher les lésions antérieures
 const LESION_IMPLIES = {
   'MA':   [],
   'HEM':  ['MA'],
@@ -76,10 +79,8 @@ const GRADE_TO_INT = {
   'No DR': 0, 'Mild': 1, 'Moderate': 2, 'Severe': 3, 'Proliferative DR': 4,
 };
 
-// Grades qui n'ont PAS besoin de lésions cochées
+// Grades qui ne nécessitent PAS de lésions
 const GRADES_NO_LESIONS = ['No DR', 'Mauvaise qualité'];
-// Grades extra (lésions optionnelles)
-const GRADES_EXTRA      = ['Impacts laser', 'Autre pathologie'];
 
 function imageFolder(name) {
   return name.replace(/[\s.]/g, '_');
@@ -109,6 +110,7 @@ const dom = {
   eyeOpen:        $('eye-open'),
   eyeClosed:      $('eye-closed'),
 
+  // Admin screen
   adminName:      $('admin-name'),
   adminAvatar:    $('admin-avatar'),
   adminLogoutBtn: $('admin-logout-btn'),
@@ -123,9 +125,9 @@ const dom = {
   drawerName:     $('drawer-name'),
   mobLogoutBtn:   $('mob-logout-btn'),
 
-  backAdminBtn:        $('back-admin-btn'),
-  mobBackAdminBtn:     $('mob-back-admin-btn'),
-  mobBackAdminSection: $('mob-back-admin-section'),
+  // Bouton retour admin (dans sidebar quand admin contrôle un compte)
+  backAdminBtn:     $('back-admin-btn'),
+  mobBackAdminBtn:  $('mob-back-admin-btn'),
 
   fundusImg:      $('fundus-img'),
   emptyState:     $('empty-state'),
@@ -150,13 +152,17 @@ const dom = {
   jumpInput:      $('jump-input'),
   jumpBtn:        $('jump-btn'),
 
+  exportBtn:      $('export-btn'),
+  dashboardBtn:   $('dashboard-btn'),
   deleteBtn:      $('delete-btn'),
   restoreBtn:     $('restore-btn'),
   resetBtn:       $('reset-btn'),
 
+  // Panneau lésions
   lesionPanel:    $('lesion-panel'),
-  lesionChecks:   {},
+  lesionChecks:   {},   // rempli dynamiquement
 
+  // Sélecteur confiance
   confidencePanel: $('confidence-panel'),
   confidenceBtns:  document.querySelectorAll('.confidence-btn'),
 
@@ -173,15 +179,17 @@ const dom = {
   drawer:         $('drawer'),
   drawerOverlay:  $('drawer-overlay'),
   drawerClose:    $('drawer-close'),
-  mobStatAnnotated:  $('mob-stat-annotated'),
-  mobStatTotal:      $('mob-stat-total'),
-  mobStatRemaining:  $('mob-stat-remaining'),
-  mobProgressBar:    $('mob-progress-bar'),
-  mobDeleteBtn:      $('mob-delete-btn'),
-  mobRestoreBtn:     $('mob-restore-btn'),
-  mobResetBtn:       $('mob-reset-btn'),
-  mobJumpInput:      $('mob-jump-input'),
-  mobJumpBtn:        $('mob-jump-btn'),
+  mobStatAnnotated: $('mob-stat-annotated'),
+  mobStatTotal:   $('mob-stat-total'),
+  mobStatRemaining: $('mob-stat-remaining'),
+  mobProgressBar: $('mob-progress-bar'),
+  mobExportBtn:   $('mob-export-btn'),
+  mobDashboardBtn:$('mob-dashboard-btn'),
+  mobDeleteBtn:   $('mob-delete-btn'),
+  mobRestoreBtn:  $('mob-restore-btn'),
+  mobResetBtn:    $('mob-reset-btn'),
+  mobJumpInput:   $('mob-jump-input'),
+  mobJumpBtn:     $('mob-jump-btn'),
 
   dashboardModal:     $('dashboard-modal'),
   dashboardClose:     $('dashboard-close'),
@@ -189,12 +197,13 @@ const dom = {
   dashboardTableWrap: $('dashboard-table-wrap'),
   dashboardTable:     $('dashboard-table'),
 
+  // Sidebar admin-only buttons section
   sidebarAdminActions: $('sidebar-admin-actions'),
   mobAdminActions:     $('mob-admin-actions'),
 };
 
 // ═══════════════════════════════════════════════════════════
-// VALIDATION — Bouton Suivant
+// VALIDATION — Bouton Suivant (requis : grade + lésion + confiance)
 // ═══════════════════════════════════════════════════════════
 
 function isCurrentImageComplete() {
@@ -204,17 +213,15 @@ function isCurrentImageComplete() {
   const ann = state.annotations[imageId];
   if (!ann || !ann.grade) return false;
 
-  // Confiance obligatoire pour tous les grades
+  // Confiance OBLIGATOIRE pour tous les grades
+  if (ann.confidence === null || ann.confidence === undefined) return false;
   const VALID_CONFIDENCE = [1.0, 0.7, 0.3];
   if (!VALID_CONFIDENCE.includes(ann.confidence)) return false;
 
-  // No DR et Mauvaise qualité : pas de lésions → juste grade + confiance suffisent
+  // No DR et Mauvaise qualité : pas de lésions → grade + confiance suffisent
   if (GRADES_NO_LESIONS.includes(ann.grade)) return true;
 
-  // Impacts laser et Autre pathologie : lésions optionnelles
-  if (GRADES_EXTRA.includes(ann.grade)) return true;
-
-  // Grades DR (Mild, Moderate, Severe, Proliferative DR) :
+  // TOUS les autres grades (Mild, Moderate, Severe, Proliferative DR, Impacts laser, Autre pathologie) :
   // au moins une lésion activée doit être cochée
   const lesions = ann.lesions || {};
   const enabled = LESION_ENABLED_BY_GRADE[ann.grade] || {};
@@ -361,16 +368,15 @@ async function loadAdminAnnotatorCards() {
   try {
     const res  = await fetch('/api/annotators');
     const data = await res.json();
+    const list = data.annotators || [];
     dom.adminCardsList.innerHTML = '';
 
+    // Stats pour chaque annotateur
     let dashData = null;
     try {
       const dr = await fetch('/api/dashboard');
       dashData = await dr.json();
     } catch {}
-
-    const list = (dashData?.annotators || data.annotators || [])
-      .filter(name => name !== state.adminName);
 
     list.forEach((name, i) => {
       const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -408,7 +414,9 @@ async function adminEnterAnnotator(annotatorName) {
     if (!res.ok) { showToast(data.error || 'Erreur accès', 'error'); return; }
 
     dom.screenAdmin.style.animation = 'fade-out 200ms ease forwards';
-    setTimeout(() => { dom.screenAdmin.classList.add('hidden'); }, 190);
+    setTimeout(() => {
+      dom.screenAdmin.classList.add('hidden');
+    }, 190);
 
     await enterApp(annotatorName, 'annotator', true);
   } catch {
@@ -431,6 +439,7 @@ function logoutAdmin() {
 
 function backToAdmin() {
   closeDrawer();
+  // Réinitialiser l'état annotateur
   state.annotateur  = state.adminName;
   state.role        = 'admin';
   state.viaAdmin    = false;
@@ -444,6 +453,7 @@ function backToAdmin() {
   dom.screenAdmin.classList.remove('hidden');
   dom.screenAdmin.style.animation = 'fade-in 250ms ease forwards';
 
+  // Rafraîchir les stats
   loadAdminAnnotatorCards();
 }
 
@@ -464,6 +474,7 @@ async function enterApp(name, role, viaAdmin) {
   dom.drawerAvatar.textContent  = initials;
   dom.drawerName.textContent    = name;
 
+  // Montrer/cacher les boutons selon le rôle
   updateSidebarForRole(viaAdmin);
 
   dom.screenLogin.classList.add('hidden');
@@ -488,11 +499,20 @@ async function enterApp(name, role, viaAdmin) {
 }
 
 function updateSidebarForRole(isAdminMode) {
-  if (dom.sidebarAdminActions) dom.sidebarAdminActions.classList.toggle('hidden', !isAdminMode);
-  if (dom.mobAdminActions)     dom.mobAdminActions.classList.toggle('hidden', !isAdminMode);
-  if (dom.backAdminBtn)        dom.backAdminBtn.classList.toggle('hidden', !isAdminMode);
-  if (dom.mobBackAdminSection) dom.mobBackAdminSection.classList.toggle('hidden', !isAdminMode);
-  if (dom.mobBackAdminBtn)     dom.mobBackAdminBtn.classList.toggle('hidden', !isAdminMode);
+  // Boutons admin (supprimer, restaurer, reset)
+  if (dom.sidebarAdminActions) {
+    dom.sidebarAdminActions.classList.toggle('hidden', !isAdminMode);
+  }
+  if (dom.mobAdminActions) {
+    dom.mobAdminActions.classList.toggle('hidden', !isAdminMode);
+  }
+  // Bouton retour admin
+  if (dom.backAdminBtn) {
+    dom.backAdminBtn.classList.toggle('hidden', !isAdminMode);
+  }
+  if (dom.mobBackAdminBtn) {
+    dom.mobBackAdminBtn.classList.toggle('hidden', !isAdminMode);
+  }
 }
 
 function logout() {
@@ -526,6 +546,7 @@ async function loadAnnotations() {
   const res  = await fetch(`/api/annotations?annotateur=${encodeURIComponent(state.annotateur)}`);
   if (!res.ok) throw new Error('Impossible de charger les annotations');
   const data = await res.json();
+  // Normaliser : supporter l'ancien format (string) et le nouveau (objet)
   const raw = data.annotations || {};
   state.annotations = {};
   for (const [imgId, val] of Object.entries(raw)) {
@@ -535,7 +556,7 @@ async function loadAnnotations() {
       state.annotations[imgId] = {
         grade:      val.grade || '',
         lesions:    val.lesions || emptyLesions(),
-        confidence: val.confidence !== undefined && val.confidence !== null ? val.confidence : null,
+        confidence: val.confidence !== undefined ? val.confidence : null,
       };
     }
   }
@@ -554,6 +575,7 @@ async function saveAnnotation(imageId, grade, lesions, confidence) {
     annotateur: state.annotateur,
     lesions,
   };
+  // Ajouter confidence seulement si elle est définie et valide
   if (confidence !== null && confidence !== undefined) {
     payload.confidence = confidence;
   }
@@ -611,7 +633,6 @@ function goPrev() {
 }
 
 function goNext() {
-  if (!isCurrentImageComplete()) return;
   if (state.currentIdx >= state.images.length - 1) return;
   goTo(state.currentIdx + 1);
 }
@@ -629,8 +650,10 @@ async function annotate(grade) {
   if (state.images.length === 0 || state.isSaving) return;
   const imageId = state.images[state.currentIdx];
 
+  // Récupérer l'annotation existante ou créer une nouvelle
   const existing = state.annotations[imageId] || { grade: '', lesions: emptyLesions(), confidence: null };
 
+  // Si changement de grade, recalculer les lésions
   let lesions = existing.lesions;
   if (existing.grade !== grade) {
     lesions = computeDefaultLesions(grade, existing.lesions);
@@ -643,9 +666,15 @@ async function annotate(grade) {
   renderGradeButtons();
   renderBadge();
   renderStats();
+  renderTopbar();
   renderLesionPanel();
   renderConfidencePanel();
-  renderTopbar(); // ← mettre à jour l'état du bouton Suivant
+
+  // Mobile : scroll vers lésions ou confiance selon le grade
+  if (true) {
+    const showLesions = grade && grade !== 'No DR' && grade !== 'Mauvaise qualité';
+    setTimeout(() => scrollMobileTo(showLesions ? 'lesion-panel' : 'confidence-panel'), 80);
+  }
 
   const btn = document.querySelector(`[data-grade="${CSS.escape(grade)}"]`);
   if (btn) {
@@ -663,15 +692,18 @@ async function annotate(grade) {
   }
 }
 
+// Calculer les lésions par défaut selon le grade
 function computeDefaultLesions(grade, existingLesions) {
   const enabled = LESION_ENABLED_BY_GRADE[grade] || {};
   const lesions = emptyLesions();
 
+  // Auto-cocher MA pour Mild
   if (grade === 'Mild') {
     lesions['MA'] = 1;
     return lesions;
   }
 
+  // Pour les autres grades, garder les lésions existantes si elles sont encore activées
   if (existingLesions) {
     LESIONS.forEach(l => {
       if (enabled[l.key] && existingLesions[l.key]) {
@@ -695,6 +727,7 @@ function toggleLesion(key, checked) {
   const lesions = { ...ann.lesions };
 
   if (checked) {
+    // Auto-sélection hiérarchique : cocher les lésions antérieures
     lesions[key] = 1;
     const implies = LESION_IMPLIES[key] || [];
     implies.forEach(k => { lesions[k] = 1; });
@@ -704,8 +737,13 @@ function toggleLesion(key, checked) {
 
   state.annotations[imageId] = { ...ann, lesions };
   renderLesionCheckboxes(ann.grade, lesions);
-  renderTopbar(); // ← mettre à jour l'état du bouton Suivant
+  renderTopbar();
   debounceSave(imageId);
+
+  // Mobile : scroll vers le panneau confiance
+  if (true) {
+    setTimeout(() => scrollMobileTo('confidence-panel'), 80);
+  }
 }
 
 let saveTimer = null;
@@ -737,7 +775,7 @@ function setConfidence(value) {
   state.annotations[imageId] = { ...ann, confidence: value };
 
   renderConfidenceButtons(value);
-  renderTopbar(); // ← mettre à jour l'état du bouton Suivant
+  renderTopbar();
   debounceSave(imageId);
 }
 
@@ -766,7 +804,7 @@ async function deleteImage() {
 async function restoreImages() {
   closeDrawer();
   try {
-    const res = await fetch('/api/restore-images', {
+    const res  = await fetch('/api/restore-images', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ annotateur: state.annotateur }),
     });
@@ -813,7 +851,7 @@ async function openDashboard() {
   dom.dashboardLoading.classList.remove('hidden');
   dom.dashboardTableWrap.classList.add('hidden');
   try {
-    const res = await fetch('/api/dashboard');
+    const res  = await fetch('/api/dashboard');
     if (!res.ok) throw new Error('Erreur');
     renderDashboardTable(await res.json());
   } catch (err) {
@@ -931,7 +969,6 @@ function renderTopbar() {
     dom.imageCounter.textContent = '— / —';
     return;
   }
-
   dom.imageName.textContent    = state.images[state.currentIdx];
   dom.imageCounter.textContent = `${state.currentIdx + 1} / ${state.images.length}`;
   dom.btnPrev.disabled = state.currentIdx === 0;
@@ -940,13 +977,6 @@ function renderTopbar() {
   const isLast     = state.currentIdx === state.images.length - 1;
   const isComplete = isCurrentImageComplete();
   dom.btnNext.disabled = isLast || !isComplete;
-
-  // Tooltip informatif si incomplet
-  if (!isComplete && !isLast) {
-    dom.btnNext.title = 'Sélectionnez un grade, les lésions et le niveau de confiance';
-  } else {
-    dom.btnNext.title = '';
-  }
 }
 
 function renderGradeButtons() {
@@ -968,22 +998,30 @@ function renderBadge() {
   }
 }
 
+// ─── Panneau lésions ──────────────────────────────────────
+
 function renderLesionPanel() {
   const current = state.images[state.currentIdx];
   const ann     = current ? state.annotations[current] : null;
   const grade   = ann ? ann.grade : null;
   const lesions = ann ? ann.lesions : emptyLesions();
 
+  // Afficher le panneau seulement si grade est un grade DR (pas Mauvaise qualité, etc.)
   const showPanel = grade && grade !== 'No DR' && grade !== 'Mauvaise qualité';
 
   if (dom.lesionPanel) {
     dom.lesionPanel.classList.toggle('hidden', !showPanel);
-    if (showPanel) renderLesionCheckboxes(grade, lesions);
+    if (showPanel) {
+      renderLesionCheckboxes(grade, lesions);
+    }
   }
 
+  // Panneau confiance
   if (dom.confidencePanel) {
     dom.confidencePanel.classList.toggle('hidden', !grade);
-    if (grade) renderConfidenceButtons(ann ? ann.confidence : null);
+    if (grade) {
+      renderConfidenceButtons(ann ? ann.confidence ?? null : null);
+    }
   }
 }
 
@@ -1014,7 +1052,9 @@ function renderConfidencePanel() {
 
   if (dom.confidencePanel) {
     dom.confidencePanel.classList.toggle('hidden', !grade);
-    if (grade) renderConfidenceButtons(ann ? ann.confidence : null);
+    if (grade) {
+      renderConfidenceButtons(ann ? ann.confidence ?? null : null);
+    }
   }
 }
 
@@ -1095,12 +1135,10 @@ function bindLoginEvents() {
     dom.eyeClosed.classList.toggle('hidden', isText);
   });
 
+  // Admin screen events
   if (dom.adminLogoutBtn) dom.adminLogoutBtn.addEventListener('click', logoutAdmin);
   if (dom.adminExportBtn) dom.adminExportBtn.addEventListener('click', () => { window.location.href = '/api/export'; });
   if (dom.adminDashBtn)   dom.adminDashBtn.addEventListener('click', openDashboard);
-
-  if (dom.dashboardClose) dom.dashboardClose.addEventListener('click', closeDashboard);
-  if (dom.dashboardModal) dom.dashboardModal.addEventListener('click', e => { if (e.target === dom.dashboardModal) closeDashboard(); });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1108,30 +1146,39 @@ function bindLoginEvents() {
 // ═══════════════════════════════════════════════════════════
 
 function bindAppEvents() {
+  // Logout / Back to admin
   dom.logoutBtn.addEventListener('click', logout);
   dom.mobLogoutBtn.addEventListener('click', logout);
   if (dom.backAdminBtn)    dom.backAdminBtn.addEventListener('click', backToAdmin);
   if (dom.mobBackAdminBtn) dom.mobBackAdminBtn.addEventListener('click', backToAdmin);
 
+  // Grade buttons
   dom.gradeBtns.forEach(btn => btn.addEventListener('click', () => annotate(btn.dataset.grade)));
 
+  // Lésion checkboxes
   LESIONS.forEach(l => {
     const cb = $(`lesion-cb-${l.key}`);
-    if (cb) cb.addEventListener('change', e => toggleLesion(l.key, e.target.checked));
+    if (cb) {
+      cb.addEventListener('change', e => toggleLesion(l.key, e.target.checked));
+    }
   });
 
+  // Confidence buttons
   document.querySelectorAll('.confidence-btn').forEach(btn => {
     btn.addEventListener('click', () => setConfidence(parseFloat(btn.dataset.confidence)));
   });
 
+  // Navigation
   dom.btnPrev.addEventListener('click', goPrev);
   dom.btnNext.addEventListener('click', goNext);
 
+  // Jump
   dom.jumpBtn.addEventListener('click', handleJump);
   dom.jumpInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleJump(); });
   dom.mobJumpBtn.addEventListener('click', handleMobJump);
   dom.mobJumpInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleMobJump(); });
 
+  // Zoom
   dom.zoomIn.addEventListener('click',    () => setZoom(state.zoomLevel + ZOOM_STEP));
   dom.zoomOut.addEventListener('click',   () => setZoom(state.zoomLevel - ZOOM_STEP));
   dom.zoomReset.addEventListener('click', () => setZoom(1.0));
@@ -1140,25 +1187,31 @@ function bindAppEvents() {
     setZoom(state.zoomLevel + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP));
   }, { passive: false });
 
+  // Boutons admin-only desktop
   if (dom.deleteBtn)  dom.deleteBtn.addEventListener('click',  deleteImage);
   if (dom.restoreBtn) dom.restoreBtn.addEventListener('click', restoreImages);
   if (dom.resetBtn)   dom.resetBtn.addEventListener('click',   openResetModal);
 
+  // Boutons admin-only mobile
   if (dom.mobDeleteBtn)  dom.mobDeleteBtn.addEventListener('click',  deleteImage);
   if (dom.mobRestoreBtn) dom.mobRestoreBtn.addEventListener('click', restoreImages);
   if (dom.mobResetBtn)   dom.mobResetBtn.addEventListener('click',   openResetModal);
 
+  // Drawer
   dom.mobMenuBtn.addEventListener('click',    openDrawer);
   dom.drawerClose.addEventListener('click',   closeDrawer);
   dom.drawerOverlay.addEventListener('click', closeDrawer);
 
+  // Reset modal
   dom.resetCancel.addEventListener('click',  closeResetModal);
   dom.resetConfirm.addEventListener('click', confirmReset);
   dom.resetModal.addEventListener('click', e => { if (e.target === dom.resetModal) closeResetModal(); });
 
+  // Dashboard modal
   dom.dashboardClose.addEventListener('click', closeDashboard);
   dom.dashboardModal.addEventListener('click', e => { if (e.target === dom.dashboardModal) closeDashboard(); });
 
+  // Raccourcis clavier
   document.addEventListener('keydown', handleKeydown);
 }
 
@@ -1196,7 +1249,7 @@ function handleKeydown(e) {
     case '7': annotate('Autre pathologie'); break;
     case '8': annotate('Mauvaise qualité'); break;
     case 'ArrowLeft':  e.preventDefault(); goPrev(); break;
-    case 'ArrowRight': e.preventDefault(); if (isCurrentImageComplete()) goNext(); break;
+    case 'ArrowRight': e.preventDefault(); goNext(); break;
     case '+': case '=': setZoom(state.zoomLevel + ZOOM_STEP); break;
     case '-': setZoom(state.zoomLevel - ZOOM_STEP); break;
     case '0': setZoom(1.0); break;
@@ -1204,6 +1257,13 @@ function handleKeydown(e) {
 }
 
 // ─── Toast / Loading ──────────────────────────────────────────────────────────
+// ─── Scroll mobile ────────────────────────────────────────────────────────────
+function scrollMobileTo(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el || el.classList.contains('hidden')) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 function showToast(message, type = 'info', duration = 2800) {
   const el = document.createElement('div');
   el.className = `toast${type ? ' ' + type : ''}`;
