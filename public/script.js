@@ -138,8 +138,9 @@ const dom = {
   mobLogoutBtn:   $('mob-logout-btn'),
 
   // Bouton retour admin (dans sidebar quand admin contrôle un compte)
-  backAdminBtn:     $('back-admin-btn'),
-  mobBackAdminBtn:  $('mob-back-admin-btn'),
+  backAdminBtn:       $('back-admin-btn'),
+  mobBackAdminSection: $('mob-back-admin-section'),
+  mobBackAdminBtn:    $('mob-back-admin-btn'),
 
   fundusImg:      $('fundus-img'),
   emptyState:     $('empty-state'),
@@ -535,8 +536,9 @@ function updateSidebarForRole(isAdminMode) {
   if (dom.backAdminBtn) {
     dom.backAdminBtn.classList.toggle('hidden', !isAdminMode);
   }
-  if (dom.mobBackAdminBtn) {
-    dom.mobBackAdminBtn.classList.toggle('hidden', !isAdminMode);
+  // ✅ Afficher la section du bouton retour admin sur mobile
+  if (dom.mobBackAdminSection) {
+    dom.mobBackAdminSection.classList.toggle('hidden', !isAdminMode);
   }
 }
 
