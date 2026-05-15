@@ -75,6 +75,18 @@ const CONFIDENCE_LEVELS = [
   { label: 'Incertain', value: 0.3 },
 ];
 
+// Mapping des noms aux usernames pour validation
+const ANNOTATOR_MAP = {
+  'Dr El Bakkali':  'elbakkali',
+  'Dr Boulanouar':  'boulanouar',
+  'Dr El Moussaif': 'elmoussaif',
+  'Dr El Arabi':    'elarabi',
+  'Dr Essafi':      'essafi',
+  'Dr Zekraoui':    'zekraoui',
+  'Dr Hafidi':      'hafidi',
+  'Dr Sbai':        'sbai',
+};
+
 const GRADE_TO_INT = {
   'No DR': 0, 'Mild': 1, 'Moderate': 2, 'Severe': 3, 'Proliferative DR': 4,
 };
@@ -303,6 +315,16 @@ async function submitLogin() {
     return;
   }
 
+  // ✅ BUG FIX #3 : Valider que le username correspond au nom sélectionné
+  const expectedUsername = ANNOTATOR_MAP[state.pendingName];
+  if (username !== expectedUsername) {
+    showLoginError(`Les identifiants ne correspondent pas à ${state.pendingName}`);
+    dom.loginPassword.value = '';
+    dom.loginPassword.classList.add('error');
+    dom.loginSubmit.disabled = false;
+    return;
+  }
+
   dom.loginSubmit.disabled = true;
   dom.loginError.classList.add('hidden');
 
@@ -467,6 +489,9 @@ async function enterApp(name, role, viaAdmin) {
   state.annotateur = name;
   state.role       = role;
   state.viaAdmin   = viaAdmin;
+  state.annotations = {}; // ✓ Vider les annotations du dernier utilisateur
+  state.currentIdx  = 0;
+  state.images      = [];
 
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   dom.sidebarAvatar.textContent = initials;
@@ -1150,7 +1175,7 @@ function bindAppEvents() {
   dom.logoutBtn.addEventListener('click', logout);
   dom.mobLogoutBtn.addEventListener('click', logout);
   if (dom.backAdminBtn)    dom.backAdminBtn.addEventListener('click', backToAdmin);
-  if (dom.mobBackAdminBtn) dom.mobBackAdminBtn.addEventListener('click', backToAdmin);
+  // Note: mobBackAdminBtn est déjà lié dans DOMContentLoaded (BUG FIX #2)
 
   // Grade buttons
   dom.gradeBtns.forEach(btn => btn.addEventListener('click', () => annotate(btn.dataset.grade)));
@@ -1208,7 +1233,7 @@ function bindAppEvents() {
   dom.resetModal.addEventListener('click', e => { if (e.target === dom.resetModal) closeResetModal(); });
 
   // Dashboard modal
-  dom.dashboardClose.addEventListener('click', closeDashboard);
+  // Note: dashboardClose est déjà lié dans DOMContentLoaded (BUG FIX #1)
   dom.dashboardModal.addEventListener('click', e => { if (e.target === dom.dashboardModal) closeDashboard(); });
 
   // Raccourcis clavier
@@ -1281,6 +1306,14 @@ function showLoading(visible) {
 
 // ─── Démarrage ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // ✅ BUG FIX #1 & #2 : Lier les boutons avant bindAppEvents()
+  if (dom.dashboardClose) {
+    dom.dashboardClose.addEventListener('click', closeDashboard);
+  }
+  if (dom.mobBackAdminBtn) {
+    dom.mobBackAdminBtn.addEventListener('click', backToAdmin);
+  }
+
   bindLoginEvents();
   loadWelcomeScreen();
 });
